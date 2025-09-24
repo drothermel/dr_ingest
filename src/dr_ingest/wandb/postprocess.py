@@ -7,7 +7,13 @@ from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 
-from .config import load_defaults, load_recipe_mapping
+from .config import (
+    load_column_renames,
+    load_defaults,
+    load_fill_from_config_map,
+    load_recipe_mapping,
+    load_run_type_hooks,
+)
 from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
 from .utils import convert_string_to_number, convert_timestamp
 
@@ -50,21 +56,22 @@ def apply_processing(
 ) -> Dict[str, pd.DataFrame]:
     """Normalise extracted run data across run types."""
     defaults_map = dict(defaults or load_defaults())
-    column_map = column_map or {}
+    column_map_config = load_column_renames()
+    effective_column_map = dict(column_map_config)
+    if column_map:
+        effective_column_map.update(column_map)
+
     recipe_mapping = load_recipe_mapping()
+    config_field_mapping = load_fill_from_config_map()
+    hooks = load_run_type_hooks()
 
     processed: Dict[str, pd.DataFrame] = {}
     recipe_columns = ["comparison_model_recipe", "initial_checkpoint_recipe"]
-    config_field_mapping = {
-        "lr": "learning_rate",
-        "seed": "seed",
-        "num_finetune_epochs": "num_train_epochs",
-    }
 
     for run_type, df in dataframes.items():
         processed_df = df.copy()
 
-        for old_col, new_col in column_map.items():
+        for old_col, new_col in effective_column_map.items():
             if old_col in processed_df.columns:
                 processed_df = processed_df.rename(columns={old_col: new_col})
 
@@ -105,16 +112,6 @@ def apply_processing(
             processed_df["comparison_model_recipe"] = processed_df[
                 "comparison_model_recipe"
             ].fillna("Dolma1.7")
-
-        if run_type == "matched":
-            if "comparison_metric" not in processed_df.columns:
-                processed_df["comparison_metric"] = "pile"
-            processed_df["comparison_metric"] = processed_df[
-                "comparison_metric"
-            ].fillna("pile")
-            processed_df["comparison_metric"] = processed_df["comparison_metric"].map(
-                lambda x: x + "_en-valppl" if x == "c4" else x + "-valppl"
-            )
 
         for col in [
             "num_finetune_tokens",
@@ -176,6 +173,10 @@ def apply_processing(
                 / processed_df.loc[mask, "num_finetune_tokens"]
                 * 100
             )
+
+        hook = hooks.get(run_type)
+        if hook:
+            processed_df = hook(processed_df)
 
         processed[run_type] = processed_df
 
