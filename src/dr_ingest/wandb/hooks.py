@@ -7,8 +7,8 @@ import pandas as pd
 from dr_ingest.wandb.config_registry import wandb_hooks
 
 
-def normalize_matched(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure matched runs have normalised comparison metrics."""
+def normalize_matched_run_type(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure matched runs have default comparison metrics and suffix normalisation."""
 
     result = df.copy()
     if "comparison_metric" not in result.columns:
@@ -29,11 +29,11 @@ def normalize_matched(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-@wandb_hooks.register("normalize_matched")
-def _make_normalize_matched() -> Callable[[pd.DataFrame], pd.DataFrame]:
+@wandb_hooks.register("normalize_matched_run_type")
+def _make_normalize_matched_run_type() -> Callable[[pd.DataFrame], pd.DataFrame]:
     """Registry factory returning the normalisation hook."""
 
-    return normalize_matched
+    return normalize_matched_run_type
 
 
-__all__ = ["normalize_matched"]
+__all__ = ["normalize_matched_run_type"]
