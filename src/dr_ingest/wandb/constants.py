@@ -1,0 +1,96 @@
+"""Shared constants for WandB run parsing."""
+
+ALL_FT_TOKENS = 665_127_434
+DEFAULT_FULL_FT_EPOCHS = 2
+
+TIMESTAMP_6 = r"(?P<timestamp>\d{6}-\d{6})"
+TIMESTAMP_8 = r"(?P<timestamp>\d{4}_\d{2}_\d{2}-\d{2}_\d{2}_\d{2})"
+EXP_NAME = r"(?P<exp_name>[\w_]+)"
+COMPARISON_MODEL_SIZE = r"(?P<comparison_model_size>\d+[MB])"
+COMPARISON_METRIC = r"(?P<comparison_metric>[\w_]+)"
+INITIAL_CHECKPOINT_RECIPE = r"(?P<initial_checkpoint_recipe>[\w_]+)"
+INITIAL_CHECKPOINT_RECIPE_DASH = r"(?P<initial_checkpoint_recipe>[\w-]+)"
+INITIAL_CHECKPOINT_SIZE = r"(?P<initial_checkpoint_size>\d+[MB])"
+INITIAL_CHECKPOINT_STEPS = r"(?P<initial_checkpoint_steps>\d+)"
+INITIAL_CHECKPOINT_STEPS_WORD = r"(?P<initial_checkpoint_steps>\w+)"
+SEED = r"(?P<seed>\d+)"
+LEARNING_RATE = r"(?P<lr>[0-9.e-]+)"
+LEARNING_RATE_1 = r"(?P<lr1>[0-9.e-]+)"
+LEARNING_RATE_2 = r"(?P<lr2>[0-9.e-]+)"
+FINETUNE_TOKENS_EPOCHS_8 = (
+    r"(?P<num_finetune_tokens_per_epoch>\d+[MB])tx(?P<num_finetune_epochs>\d+)"
+)
+FINETUNE_TOKENS_EPOCHS_6 = (
+    r"(?P<num_finetune_tokens_per_epoch>\d+[MG])tx(?P<num_finetune_epochs>\d+)"
+)
+FINETUNE_TOKENS_8 = r"(?P<num_finetune_tokens>\d+[MB])"
+FINETUNE_TOKENS_GT = r"(?P<num_finetune_tokens>\d+[MG]t)"
+FINETUNE_TOKENS_SIMPLE = r"(?P<num_finetune_tokens>\d+)"
+REDUCE_LOSS = r"(?P<reduce_loss>\w+)"
+
+TIMESTAMP_6_EXP_NAME = rf"{TIMESTAMP_6}_{EXP_NAME}"
+TIMESTAMP_8_EXP_NAME = rf"{TIMESTAMP_8}_{EXP_NAME}"
+LR_SUFFIX = rf"_lr={LEARNING_RATE}"
+LEARNING_RATE_FLAG = rf"_--learning_rate={LEARNING_RATE}"
+LEARNING_RATE_EQUAL = rf"_learning_rate={LEARNING_RATE}"
+FINETUNE_FT = "_finetune_Ft"
+FINETUNE_TOKENS_6 = rf"_finetune_{FINETUNE_TOKENS_EPOCHS_6}"
+DD_BLOCK_STEPS_WORD = rf"DD-{INITIAL_CHECKPOINT_RECIPE}-{INITIAL_CHECKPOINT_SIZE}"
+DD_BLOCK_FULL = rf"DD-{INITIAL_CHECKPOINT_RECIPE}-{INITIAL_CHECKPOINT_SIZE}-{INITIAL_CHECKPOINT_STEPS}-{SEED}"
+DD_COMPARISON_6 = rf"DD-[\w-]+-{COMPARISON_MODEL_SIZE}"
+MATCHED_PREFIX_6 = rf"{TIMESTAMP_6_EXP_NAME}_{COMPARISON_MODEL_SIZE}"
+MATCHED_PREFIX_WITH_METRIC = (
+    rf"{TIMESTAMP_6_EXP_NAME}_{COMPARISON_MODEL_SIZE}_{COMPARISON_METRIC}"
+)
+
+MIN_VALID_RUN_ID_SEGMENTS = 2
+EXPECTED_DATE_OR_TIME_RAW_LEN = 6
+EXPECTED_DATETIME_RAW_LEN = 2 * EXPECTED_DATE_OR_TIME_RAW_LEN + 1
+ALT_COMPARISON_MODEL_RECIPE_STR = "c4"
+ALT_COMPARISON_MODEL_RECIPE = "C4"
+FINETUNE_PATTERN = r"(\d+M)tx(\d+)"
+DD_PATTERN = r"DD-([^-]+)-(\d+M)-(\d+)-(\d+)"
+
+__all__ = [
+    "ALL_FT_TOKENS",
+    "DEFAULT_FULL_FT_EPOCHS",
+    "TIMESTAMP_6",
+    "TIMESTAMP_8",
+    "EXP_NAME",
+    "COMPARISON_MODEL_SIZE",
+    "COMPARISON_METRIC",
+    "INITIAL_CHECKPOINT_RECIPE",
+    "INITIAL_CHECKPOINT_RECIPE_DASH",
+    "INITIAL_CHECKPOINT_SIZE",
+    "INITIAL_CHECKPOINT_STEPS",
+    "INITIAL_CHECKPOINT_STEPS_WORD",
+    "SEED",
+    "LEARNING_RATE",
+    "LEARNING_RATE_1",
+    "LEARNING_RATE_2",
+    "FINETUNE_TOKENS_EPOCHS_8",
+    "FINETUNE_TOKENS_EPOCHS_6",
+    "FINETUNE_TOKENS_8",
+    "FINETUNE_TOKENS_GT",
+    "FINETUNE_TOKENS_SIMPLE",
+    "REDUCE_LOSS",
+    "TIMESTAMP_6_EXP_NAME",
+    "TIMESTAMP_8_EXP_NAME",
+    "LR_SUFFIX",
+    "LEARNING_RATE_FLAG",
+    "LEARNING_RATE_EQUAL",
+    "FINETUNE_FT",
+    "FINETUNE_TOKENS_6",
+    "DD_BLOCK_STEPS_WORD",
+    "DD_BLOCK_FULL",
+    "DD_COMPARISON_6",
+    "MATCHED_PREFIX_6",
+    "MATCHED_PREFIX_WITH_METRIC",
+    "MIN_VALID_RUN_ID_SEGMENTS",
+    "EXPECTED_DATE_OR_TIME_RAW_LEN",
+    "EXPECTED_DATETIME_RAW_LEN",
+    "ALT_COMPARISON_MODEL_RECIPE_STR",
+    "ALT_COMPARISON_MODEL_RECIPE",
+    "FINETUNE_PATTERN",
+    "DD_PATTERN",
+]
