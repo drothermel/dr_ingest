@@ -49,7 +49,16 @@ def normalize_oe_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
         .drop("task_config")
         .map(lambda row: {k: v for k, v in row.items() if v is not None})
         .keep(lambda row: len(row) > 1)
-        .map(lambda row: {**row, **row.get("extra_metrics", {})})
+        .map(
+            lambda row: {
+                **row,
+                **{
+                    k: v
+                    for k, v in (row.get("extra_metrics", {}) or {}).items()
+                    if v is not None
+                },
+            }
+        )
         .drop("extra_metrics")
         .collect()
     )
