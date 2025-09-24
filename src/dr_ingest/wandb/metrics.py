@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from functools import lru_cache
-from typing import Any, Dict, Iterable, Optional, Set, Tuple
+from typing import Any
 
 import attrs
 import pandas as pd
@@ -16,7 +17,7 @@ def _default_resolver() -> "MetricLabelResolver":
     return MetricLabelResolver.from_config()
 
 
-def canonicalize_metric_label(value: Any, default: Optional[str] = None) -> str:
+def canonicalize_metric_label(value: Any, default: str | None = None) -> str:
     """Return a canonical metric label given a raw value."""
 
     return _default_resolver().resolve(value, default=default)
@@ -39,7 +40,7 @@ def _perplexity_metric() -> str:
 
 
 @lru_cache(maxsize=1)
-def _perplexity_label_map() -> Dict[str, str]:
+def _perplexity_label_map() -> dict[str, str]:
     from .config import load_perplexity_label_map
 
     mapping = load_perplexity_label_map()
@@ -47,7 +48,7 @@ def _perplexity_label_map() -> Dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def _alias_lookup() -> Dict[str, str]:
+def _alias_lookup() -> dict[str, str]:
     from .config import load_metric_aliases
 
     aliases = {key.lower(): value for key, value in load_metric_aliases().items()}
@@ -60,35 +61,35 @@ def _alias_lookup() -> Dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def _perplexity_labels() -> Set[str]:
+def _perplexity_labels() -> set[str]:
     labels = set(_perplexity_label_map().values())
     labels.update(_alias_lookup().values())
     return {label for label in labels}
 
 
 @lru_cache(maxsize=1)
-def _metric_name_set() -> Set[str]:
+def _metric_name_set() -> set[str]:
     from .config import load_metric_names
 
     return {name.lower() for name in load_metric_names()}
 
 
 @lru_cache(maxsize=1)
-def _olmes_task_set() -> Set[str]:
+def _olmes_task_set() -> set[str]:
     from .config import load_olmes_tasks
 
     return {task.lower() for task in load_olmes_tasks()}
 
 
 @lru_cache(maxsize=1)
-def _mmlu_task_set() -> Set[str]:
+def _mmlu_task_set() -> set[str]:
     from .config import load_mmlu_tasks
 
     return {task.lower() for task in load_mmlu_tasks()}
 
 
 @lru_cache(maxsize=1)
-def _perplexity_task_set() -> Set[str]:
+def _perplexity_task_set() -> set[str]:
     from .config import load_perplexity_tasks
 
     tasks = {task.lower() for task in load_perplexity_tasks()}
@@ -100,7 +101,7 @@ def _perplexity_task_set() -> Set[str]:
 
 
 @lru_cache(maxsize=1)
-def _known_tasks() -> Set[str]:
+def _known_tasks() -> set[str]:
     tasks = set(_olmes_task_set())
     tasks.update(_mmlu_task_set())
     tasks.update(_perplexity_task_set())
@@ -108,7 +109,7 @@ def _known_tasks() -> Set[str]:
 
 
 @lru_cache(maxsize=1)
-def _all_known_labels() -> Set[str]:
+def _all_known_labels() -> set[str]:
     labels = set(_perplexity_labels())
     tasks = _known_tasks()
     metrics = _metric_name_set()
@@ -119,8 +120,8 @@ def _all_known_labels() -> Set[str]:
 
 
 @lru_cache(maxsize=1)
-def _canonical_lookup() -> Dict[str, str]:
-    lookup: Dict[str, str] = {}
+def _canonical_lookup() -> dict[str, str]:
+    lookup: dict[str, str] = {}
     for label in _all_known_labels():
         for variant in key_variants(label):
             lookup.setdefault(variant, label)
@@ -133,19 +134,6 @@ def _format_task_metric(task: str, metric: str) -> str:
     return f"{task_norm}_{metric_norm}" if metric_norm else task_norm
 
 
-def _split_task_metric(value: str) -> Tuple[str, str | None]:
-    prefix, remainder = split_by_known_prefix(value, _known_tasks())
-
-    if remainder:
-        return prefix, normalize_key(remainder)
-
-    lowered = normalize_key(value)
-    if lowered in _perplexity_task_set():
-        return lowered, None
-
-    return lowered, None
-
-
 @attrs.define(frozen=True)
 class MetricLabelResolver:
     """Resolve raw metric labels to canonical names."""
@@ -156,7 +144,7 @@ class MetricLabelResolver:
     def from_config(cls) -> "MetricLabelResolver":
         return cls(default_label=_default_label())
 
-    def resolve(self, value: Any, *, default: Optional[str] = None) -> str:
+    def resolve(self, value: Any, *, default: str | None = None) -> str:
         default_label = default or self.default_label
         text = self._normalize_input(value)
         if text is None:
@@ -178,7 +166,7 @@ class MetricLabelResolver:
             canonical_alias = self._lookup_canonical(alias_target, canonical_lookup)
             return canonical_alias or alias_target
 
-        task, metric = self._split_task_metric(text, known_tasks, perplexity_task_set)
+        task, metric = self._split_task_metric(text, known_tasks)
         if metric is None:
             task_normalized = normalize_key(task)
             if (
@@ -195,7 +183,7 @@ class MetricLabelResolver:
         return canonical_candidate or default_label
 
     @staticmethod
-    def _normalize_input(value: Any) -> Optional[str]:
+    def _normalize_input(value: Any) -> str | None:
         if value is None:
             return None
         if isinstance(value, float) and pd.isna(value):
@@ -205,8 +193,8 @@ class MetricLabelResolver:
 
     @staticmethod
     def _lookup_canonical_variants(
-        variants: Iterable[str], lookup: Dict[str, str]
-    ) -> Optional[str]:
+        variants: Iterable[str], lookup: dict[str, str]
+    ) -> str | None:
         for variant in variants:
             if variant in lookup:
                 return lookup[variant]
@@ -217,8 +205,8 @@ class MetricLabelResolver:
 
     @staticmethod
     def _resolve_alias(
-        variants: Iterable[str], alias_lookup: Dict[str, str]
-    ) -> Optional[str]:
+        variants: Iterable[str], alias_lookup: dict[str, str]
+    ) -> str | None:
         for variant in variants:
             alias_target = alias_lookup.get(variant)
             if alias_target:
@@ -229,12 +217,12 @@ class MetricLabelResolver:
         return None
 
     @staticmethod
-    def _lookup_canonical(label: str, lookup: Dict[str, str]) -> Optional[str]:
+    def _lookup_canonical(label: str, lookup: dict[str, str]) -> str | None:
         for variant in key_variants(label):
             if variant in lookup:
                 return lookup[variant]
             result = lookup.get(variant.lower())
-            if result:
+            if result is not None:
                 return result
         return None
 
@@ -242,18 +230,11 @@ class MetricLabelResolver:
     def _split_task_metric(
         value: str,
         known_tasks: Iterable[str],
-        perplexity_task_set: Set[str],
-    ) -> Tuple[str, str | None]:
+    ) -> tuple[str, str | None]:
         prefix, remainder = split_by_known_prefix(value, known_tasks)
-
         if remainder:
             return prefix, normalize_key(remainder)
-
-        lowered = normalize_key(value)
-        if lowered in perplexity_task_set:
-            return lowered, None
-
-        return lowered, None
+        return normalize_key(value), None
 
 
 __all__ = ["canonicalize_metric_label", "MetricLabelResolver"]
