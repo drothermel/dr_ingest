@@ -22,10 +22,18 @@ def group_oe_metrics_by_task(metrics: Mapping[str, Any]) -> dict[str, Any]:
             continue
         if len(parts) == 3:
             _, task, metric = parts
-            grouped.setdefault(task, {})[metric] = value
+            existing = grouped.get(task)
+            if not isinstance(existing, dict):
+                existing = {"value": existing} if existing is not None else {}
+            existing[metric] = value
+            grouped[task] = existing
         else:
             _, task = parts
-            grouped[task] = value
+            current = grouped.get(task)
+            if isinstance(current, dict):
+                current["value"] = value
+            else:
+                grouped[task] = value
     return grouped
 
 
@@ -52,11 +60,13 @@ def normalize_oe_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
         payload = {k: v for k, v in row.items() if k != "task"}
         if payload == {"value": None}:
             continue
-        if "value" in payload and len(payload) == 1:
-            normalised[task] = payload["value"]
-        else:
-            payload.pop("value", None)
-            normalised[task] = payload
+        if "value" in payload:
+            scalar = payload.pop("value")
+            if not payload:
+                normalised[task] = scalar
+                continue
+            payload["value"] = scalar
+        normalised[task] = payload
     return normalised
 
 

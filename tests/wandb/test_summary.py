@@ -27,3 +27,14 @@ def test_normalize_oe_summary_with_extra_metrics() -> None:
 
     result = normalize_oe_summary(summary)
     assert result["task1"]["precision"] == 0.7
+
+
+def test_normalize_oe_summary_mixed_scalar_and_nested() -> None:
+    summary = {
+        "oe_eval_metrics/task1": 0.5,
+        "oe_eval_metrics/task1/accuracy": 0.8,
+    }
+
+    result = normalize_oe_summary(summary)
+    assert result["task1"]["value"] == 0.5
+    assert result["task1"]["accuracy"] == 0.8
