@@ -13,6 +13,8 @@ def test_apply_processing_value_converters() -> None:
             "num_finetune_tokens": ["10M"],
             "num_finetune_tokens_per_epoch": ["5M"],
             "num_finetuned_tokens_real": ["8M"],
+            "initial_checkpoint_recipe": ["d17"],
+            "initial_checkpoint_steps": [None],
         }
     )
 
@@ -22,6 +24,8 @@ def test_apply_processing_value_converters() -> None:
     assert processed.loc[0, "num_finetune_tokens"] == 10_000_000
     assert processed.loc[0, "num_finetune_tokens_per_epoch"] == 5_000_000
     assert processed.loc[0, "num_finetuned_tokens_real"] == 8_000_000
+    assert processed.loc[0, "ckpt_steps"] == "main"
+    assert processed.loc[0, "ckpt_data"] == "Dolma1.7"
 
 
 def test_extract_config_fields_reads_summary_payload() -> None:

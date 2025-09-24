@@ -38,11 +38,11 @@ def apply_processing(
     for run_type, df in dataframes.items():
         frame = (
             df.copy()
-            .pipe(context.rename_columns)
             .pipe(context.apply_defaults)
             .pipe(context.map_recipes, recipe_columns)
             .pipe(merge_config_fields_from_runs, runs_df=runs_df, context=context)
             .pipe(context.apply_converters)
+            .pipe(context.rename_columns)
             .pipe(ensure_full_finetune_defaults)
             .pipe(fill_missing_token_totals)
         )
