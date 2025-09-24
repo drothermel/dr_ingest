@@ -55,15 +55,24 @@ def extract_config_fields(
     runs_df: pd.DataFrame,
     run_ids: Iterable[str],
     field_mapping: dict[str, str],
+    *,
+    source_column: str = "config",
 ) -> dict[str, dict[str, Any]]:
-    """Return updates for the provided run IDs."""
-    updates = {}
+    """Return updates for the provided run IDs from the requested payload."""
+
+    if not field_mapping:
+        return {}
+
+    updates: dict[str, dict[str, Any]] = {}
     for run_id in run_ids:
-        run_row = runs_df.iloc[require_row_index(runs_df, "run_id", run_id)]
-        config = safe_load_json(run_row.get("config")) or {}
+        row_idx = require_row_index(runs_df, "run_id", run_id)
+        run_row = runs_df.iloc[row_idx]
+        payload = safe_load_json(run_row.get(source_column)) or {}
+        if not isinstance(payload, dict):
+            continue
         for target_field, source_field in field_mapping.items():
-            if config.get(source_field) is not None:
-                updates.setdefault(run_id, {})[target_field] = config[source_field]
+            if source_field in payload and payload[source_field] is not None:
+                updates.setdefault(run_id, {})[target_field] = payload[source_field]
     return updates
 
 
@@ -83,6 +92,7 @@ def merge_config_fields_from_runs(
         runs_df,
         run_ids,
         context.summary_field_mapping,
+        source_column="summary",
     )
     frame = apply_row_updates(frame, summary_updates, force_setter)
     optional_updates = extract_config_fields(
