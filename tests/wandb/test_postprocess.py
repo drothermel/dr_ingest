@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from dr_ingest.wandb.postprocess import apply_processing, extract_config_fields
+from dr_ingest.wandb.hydration import HydrationExecutor
+from dr_ingest.wandb.postprocess import apply_processing
+from dr_ingest.wandb.processing_context import ProcessingContext
 
 
 def test_apply_processing_value_converters() -> None:
@@ -18,31 +20,57 @@ def test_apply_processing_value_converters() -> None:
         }
     )
 
-    processed = apply_processing({"simple_ft": df})["simple_ft"]
+    runs_df = pd.DataFrame(
+        {
+            "run_id": ["2025_08_30-16_54_48_test_run"],
+            "config": ["{}"],
+            "summary": ['{"total_tokens": 123}'],
+        }
+    )
+
+    processed = apply_processing({"simple_ft": df}, runs_df=runs_df)["simple_ft"]
 
     assert processed.loc[0, "timestamp"] == pd.Timestamp("2025-08-30 16:54:48")
     assert processed.loc[0, "num_finetune_tokens"] == 10_000_000
     assert processed.loc[0, "num_finetune_tokens_per_epoch"] == 5_000_000
-    assert processed.loc[0, "num_finetuned_tokens_real"] == 8_000_000
+    assert processed.loc[0, "num_finetuned_tokens_real"] == 123
     assert processed.loc[0, "ckpt_steps"] == "main"
     assert processed.loc[0, "ckpt_data"] == "Dolma1.7"
-
-
-def test_extract_config_fields_reads_summary_payload() -> None:
+def test_hydration_executor_applies_summary_and_config_targets() -> None:
+    df = pd.DataFrame({"run_id": ["run-1"]})
     runs_df = pd.DataFrame(
         {
-            "run_id": ["run-1", "run-2"],
-            "config": ["{}", "{}"],
-            "summary": ['{"total_tokens": 123}', None],
+            "run_id": ["run-1"],
+            "config": ['{"learning_rate": 1e-5}'],
+            "summary": ['{"total_tokens": 999}'],
         }
     )
 
-    mapping = {"num_finetuned_tokens_real": "total_tokens"}
-    updates = extract_config_fields(
-        runs_df,
-        ["run-1", "run-2"],
-        mapping,
-        source_column="summary",
+    context = ProcessingContext.from_config()
+    executor = HydrationExecutor.from_context(context)
+    hydrated = executor.apply(df, ground_truth_source=runs_df)
+
+    assert hydrated.loc[0, "num_finetuned_tokens_real"] == 999
+    assert hydrated.loc[0, "lr"] == "1e-05"
+
+
+def test_apply_processing_maps_recipes_after_config_merge() -> None:
+    df = pd.DataFrame(
+        {
+            "run_id": ["2025_08_30-16_54_48_test_run"],
+            "initial_checkpoint_recipe": [None],
+        }
     )
 
-    assert updates == {"run-1": {"num_finetuned_tokens_real": 123}}
+    runs_df = pd.DataFrame(
+        {
+            "run_id": ["2025_08_30-16_54_48_test_run"],
+            "config": ['{"initial_checkpoint_recipe": "d17"}'],
+            "summary": ["{}"],
+        }
+    )
+
+    processed = apply_processing({"simple_ft": df}, runs_df=runs_df)["simple_ft"]
+
+    assert "ckpt_data" in processed.columns
+    assert processed.loc[0, "ckpt_data"] == "Dolma1.7"
