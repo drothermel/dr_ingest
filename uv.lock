@@ -74,6 +74,7 @@ dependencies = [
     { name = "memo" },
     { name = "pandas" },
     { name = "pyarrow" },
+    { name = "srsly" },
     { name = "typer" },
 ]
 
@@ -90,6 +91,7 @@ requires-dist = [
     { name = "memo", specifier = ">=0.2.4" },
     { name = "pandas", specifier = ">=2.3.2" },
     { name = "pyarrow", specifier = ">=21.0.0" },
+    { name = "srsly", specifier = ">=2.5.1" },
     { name = "typer", specifier = ">=0.19.2" },
 ]
 
