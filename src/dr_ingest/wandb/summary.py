@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
 from clumper import Clumper
 
