@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pandas as pd
 
@@ -14,6 +14,7 @@ from .config import (
     load_fill_from_config_map,
     load_recipe_mapping,
     load_run_type_hooks,
+    load_recipe_columns,
     load_summary_field_map,
 )
 
@@ -23,6 +24,7 @@ class ProcessingContext:
     column_renames: Dict[str, str]
     defaults: Dict[str, Any]
     recipe_mapping: Dict[str, str]
+    recipe_columns: List[str]
     config_field_mapping: Dict[str, str]
     summary_field_mapping: Dict[str, str]
     column_converters: Dict[str, Any]
@@ -57,6 +59,7 @@ class ProcessingContext:
             column_renames=column_renames,
             defaults=defaults,
             recipe_mapping=dict(load_recipe_mapping()),
+            recipe_columns=list(load_recipe_columns()),
             config_field_mapping=config_field_mapping,
             summary_field_mapping=summary_field_mapping,
             column_converters=dict(load_column_converters()),
@@ -76,9 +79,12 @@ class ProcessingContext:
         }
         return frame.rename(columns=existing) if existing else frame.copy()
 
-    def map_recipes(self, frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    def map_recipes(
+        self, frame: pd.DataFrame, columns: List[str] | None = None
+    ) -> pd.DataFrame:
         result = frame.copy()
-        for column in columns:
+        target_columns = columns or self.recipe_columns
+        for column in target_columns:
             if column not in result.columns:
                 continue
             result[column] = result[column].map(

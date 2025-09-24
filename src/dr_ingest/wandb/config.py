@@ -76,6 +76,23 @@ def load_column_renames() -> Dict[str, str]:
 
 
 @lru_cache(maxsize=1)
+def load_recipe_columns() -> Iterable[str]:
+    cfg = load_raw_config()
+    processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
+    recipe_section = (
+        processing_cfg.get("recipe_columns", {})
+        if isinstance(processing_cfg, dict)
+        else {}
+    )
+    columns = (
+        recipe_section.get("columns", [])
+        if isinstance(recipe_section, dict)
+        else []
+    )
+    return [str(column) for column in columns]
+
+
+@lru_cache(maxsize=1)
 def load_fill_from_config_map() -> Dict[str, str]:
     cfg = load_raw_config()
     processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
@@ -195,6 +212,7 @@ __all__ = [
     "load_recipe_mapping",
     "load_pattern_specs",
     "load_column_renames",
+    "load_recipe_columns",
     "load_fill_from_config_map",
     "load_run_type_hooks",
     "load_value_converter_map",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from dr_ingest.wandb.hydration import HydrationExecutor
+from dr_ingest.wandb.normalization_pipeline import RunNormalizationExecutor
 from dr_ingest.wandb.postprocess import apply_processing
 from dr_ingest.wandb.processing_context import ProcessingContext
 
@@ -54,6 +55,30 @@ def test_hydration_executor_applies_summary_and_config_targets() -> None:
 
     assert hydrated.loc[0, "num_finetuned_tokens_real"] == 999
     assert hydrated.loc[0, "lr"] == "1e-05"
+
+
+def test_run_normalization_executor_applies_defaults_and_recipes() -> None:
+    context = ProcessingContext.from_config()
+    executor = RunNormalizationExecutor.from_context(context)
+    frame = pd.DataFrame(
+        {
+            "run_id": ["run-1_Ft_"],
+            "initial_checkpoint_recipe": ["d17"],
+            "initial_checkpoint_steps": [None],
+            "comparison_model_recipe": ["d16"],
+            "comparison_metric": [None],
+            "num_finetune_tokens_per_epoch": ["5M"],
+            "num_finetune_epochs": ["2"],
+        }
+    )
+
+    normalized = executor.normalize(frame, run_type="matched")
+
+    assert normalized.loc[0, "ckpt_steps"] == "main"
+    assert normalized.loc[0, "ckpt_data"] == "Dolma1.7"
+    assert normalized.loc[0, "num_finetune_tokens"] == 1_330_254_868
+    # matched hook should canonicalize comparison_metric
+    assert normalized.loc[0, "comparison_metric"] == "pile-valppl"
 
 
 def test_apply_processing_maps_recipes_after_config_merge() -> None:
