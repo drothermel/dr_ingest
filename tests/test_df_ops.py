@@ -10,6 +10,7 @@ from dr_ingest.df_ops import (
     apply_if_column,
     ensure_column,
     fill_missing_values,
+    masked_setter,
     force_set_cell,
     map_column_with_fallback,
     maybe_update_cell,
@@ -94,3 +95,11 @@ def test_force_set_cell_ensures_column_and_sets_value() -> None:
     # inplace update
     force_set_cell(df, 0, "col", 10, inplace=True)
     assert df.loc[0, "col"] == 10
+
+
+def test_masked_setter_creates_column_and_sets_matches() -> None:
+    df = _df({"run_id": ["a", "b"], "flag": [False, True]})
+    mask = df["flag"]
+    result = masked_setter(df.copy(), mask, "new_col", "value")
+    assert result.loc[result["run_id"] == "b", "new_col"].item() == "value"
+    assert pd.isna(result.loc[result["run_id"] == "a", "new_col"].item())

@@ -203,8 +203,15 @@ def apply_row_updates(
 
 
 def masked_getter(df: pd.DataFrame, mask: pd.Series, column: str) -> Any:
-    """Get a value from a column only if the mask is True."""
-    return df.loc[mask, column].iloc[0]
+    """Return the first value where ``mask`` is true or ``None`` if empty."""
+
+    if column not in df.columns:
+        return None
+
+    selection = df.loc[mask, column]
+    if selection.empty:
+        return None
+    return selection.iloc[0]
 
 
 def masked_setter(

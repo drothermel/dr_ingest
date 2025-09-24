@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..df_ops import ensure_column, masked_getter, masked_setter
+from ..df_ops import ensure_column, masked_setter
 from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
 from .utils import coerce_to_numeric
 
@@ -41,25 +41,18 @@ def fill_missing_token_totals(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     result = ensure_column(result, "num_finetune_tokens", None)
     result = coerce_to_numeric(result, "num_finetune_tokens")
+    result = coerce_to_numeric(result, "num_finetune_tokens_per_epoch")
+    result = coerce_to_numeric(result, "num_finetune_epochs")
+
     calc_ft_toks_mask = (
         result["num_finetune_tokens_per_epoch"].notna()
         & result["num_finetune_epochs"].notna()
         & result["num_finetune_tokens"].isna()
     )
-    masked_ft_per_epoch = masked_getter(
-        result, calc_ft_toks_mask, "num_finetune_tokens_per_epoch"
-    )
-    masked_ft_epochs = masked_getter(
-        result,
-        calc_ft_toks_mask,
-        "num_finetune_epochs",
-    )
-    result = masked_setter(
-        result,
-        calc_ft_toks_mask,
-        "num_finetune_tokens",
-        masked_ft_per_epoch * masked_ft_epochs,
-    )
+    if calc_ft_toks_mask.any():
+        per_epoch = result.loc[calc_ft_toks_mask, "num_finetune_tokens_per_epoch"]
+        epochs = result.loc[calc_ft_toks_mask, "num_finetune_epochs"]
+        result.loc[calc_ft_toks_mask, "num_finetune_tokens"] = per_epoch * epochs
     return result
 
 
