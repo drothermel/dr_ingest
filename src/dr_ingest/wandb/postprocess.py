@@ -1,58 +1,18 @@
-"""Post-processing utilities for classified WandB runs."""
+"""Post-processing pipeline for classified WandB runs."""
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from .config import (
-    load_column_converters,
-    load_column_renames,
-    load_defaults,
-    load_fill_from_config_map,
-    load_recipe_mapping,
-    load_run_type_hooks,
+from .config_enrichment import extract_config_fields, merge_config_fields
+from .processing_context import ProcessingContext
+from .tokens import (
+    compute_token_delta_percent,
+    ensure_full_finetune_defaults,
+    fill_missing_token_totals,
 )
-from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
-from ..df_ops import (
-    apply_column_converters,
-    ensure_column,
-    fill_missing_values,
-    map_column_with_fallback,
-    maybe_update_cell,
-    rename_columns,
-)
-
-
-def extract_config_fields(
-    runs_df: pd.DataFrame, run_ids: Iterable[str], field_mapping: Dict[str, str]
-) -> Dict[str, Dict[str, Any]]:
-    """Extract selected configuration/summary fields for runs."""
-    config_data: Dict[str, Dict[str, Any]] = {}
-    for run_id in run_ids:
-        run_row = runs_df[runs_df["run_id"] == run_id]
-        if run_row.empty:
-            continue
-        try:
-            config = json.loads(run_row.iloc[0]["config"])
-        except (json.JSONDecodeError, ValueError, KeyError, TypeError):
-            config = {}
-        for target_field, config_field in field_mapping.items():
-            if config_field in config and config[config_field] is not None:
-                config_data.setdefault(run_id, {})[target_field] = config[config_field]
-        summary_payload = run_row.iloc[0].get("summary")
-        if summary_payload and not pd.isna(summary_payload):
-            try:
-                summary = json.loads(summary_payload)
-            except (json.JSONDecodeError, ValueError, KeyError, TypeError):
-                summary = None
-            if summary and summary.get("total_tokens") is not None:
-                config_data.setdefault(run_id, {})["num_finetuned_tokens_real"] = (
-                    summary["total_tokens"]
-                )
-    return config_data
 
 
 def apply_processing(
@@ -63,131 +23,50 @@ def apply_processing(
     history_df: Optional[pd.DataFrame] = None,
 ) -> Dict[str, pd.DataFrame]:
     """Normalise extracted run data across run types."""
-    defaults_map = dict(defaults or load_defaults())
-    column_map_config = load_column_renames()
-    effective_column_map = dict(column_map_config)
-    if column_map:
-        effective_column_map.update(column_map)
 
-    recipe_mapping = load_recipe_mapping()
-    config_field_mapping = load_fill_from_config_map()
-    hooks = load_run_type_hooks()
-    column_converters = load_column_converters()
-
+    context = ProcessingContext.from_config(
+        overrides=defaults or {}, column_renames_override=column_map or {}
+    )
     processed: Dict[str, pd.DataFrame] = {}
     recipe_columns = ["comparison_model_recipe", "initial_checkpoint_recipe"]
 
     for run_type, df in dataframes.items():
-        processed_df = df.copy()
+        frame = df.copy()
+        frame = context.rename_columns(frame)
+        frame = context.apply_defaults(frame)
+        frame = context.map_recipes(frame, recipe_columns)
 
-        processed_df = rename_columns(processed_df, effective_column_map, inplace=True)
-        processed_df = fill_missing_values(processed_df, defaults_map, inplace=True)
+        if runs_df is not None and "run_id" in frame.columns:
+            run_ids = frame["run_id"].tolist()
+            if context.config_field_mapping:
+                config_data = extract_config_fields(
+                    runs_df, run_ids, context.config_field_mapping
+                )
+                frame = merge_config_fields(frame, config_data)
 
-        for recipe_col in recipe_columns:
-            processed_df = map_column_with_fallback(
-                processed_df,
-                recipe_col,
-                recipe_mapping,
-                inplace=True,
-            )
+        frame = context.apply_converters(frame)
+        frame = ensure_comparison_recipe_default(frame)
+        frame = ensure_full_finetune_defaults(frame)
+        frame = fill_missing_token_totals(frame)
+        frame = compute_token_delta_percent(frame)
+        frame = context.apply_hook(run_type, frame)
 
-        if runs_df is not None and "run_id" in processed_df.columns:
-            run_ids = processed_df["run_id"].tolist()
-            config_data = extract_config_fields(runs_df, run_ids, config_field_mapping)
-            for run_id, fields in config_data.items():
-                run_idx = processed_df.index[processed_df["run_id"] == run_id]
-                if run_idx.empty:
-                    continue
-                for field, value in fields.items():
-                    if field == "num_finetuned_tokens_real":
-                        processed_df = ensure_column(
-                            processed_df,
-                            field,
-                            None,
-                            inplace=True,
-                        )
-                        processed_df.loc[run_idx[0], field] = value
-                    elif field in processed_df.columns:
-                        processed_df = maybe_update_cell(
-                            processed_df,
-                            run_idx[0],
-                            field,
-                            str(value),
-                            inplace=True,
-                        )
-
-        processed_df = apply_column_converters(
-            processed_df, column_converters, inplace=True
-        )
-
-        if (
-            "comparison_model_size" in processed_df.columns
-            and "comparison_model_recipe" in processed_df.columns
-        ):
-            processed_df["comparison_model_recipe"] = processed_df[
-                "comparison_model_recipe"
-            ].fillna("Dolma1.7")
-
-        mask = (
-            processed_df["run_id"].str.contains("_Ft_")
-            if "run_id" in processed_df
-            else False
-        )
-        if isinstance(mask, pd.Series) and mask.any():
-            processed_df.loc[mask, "num_finetune_tokens_per_epoch"] = ALL_FT_TOKENS
-            processed_df.loc[mask, "num_finetune_epochs"] = DEFAULT_FULL_FT_EPOCHS
-            processed_df.loc[mask, "num_finetune_tokens"] = (
-                DEFAULT_FULL_FT_EPOCHS * ALL_FT_TOKENS
-            )
-            processed_df.loc[mask, "num_finetuned_tokens_real"] = (
-                DEFAULT_FULL_FT_EPOCHS * ALL_FT_TOKENS
-            )
-
-        if (
-            "num_finetune_tokens_per_epoch" in processed_df.columns
-            and "num_finetune_epochs" in processed_df.columns
-        ):
-            if "num_finetune_tokens" not in processed_df.columns:
-                processed_df["num_finetune_tokens"] = None
-            processed_df["num_finetune_epochs"] = pd.to_numeric(
-                processed_df["num_finetune_epochs"], errors="coerce"
-            )
-            fill_mask = (
-                processed_df["num_finetune_tokens_per_epoch"].notna()
-                & processed_df["num_finetune_epochs"].notna()
-                & processed_df["num_finetune_tokens"].isna()
-            )
-            processed_df.loc[fill_mask, "num_finetune_tokens"] = (
-                processed_df.loc[fill_mask, "num_finetune_tokens_per_epoch"]
-                * processed_df.loc[fill_mask, "num_finetune_epochs"]
-            )
-
-        if (
-            "num_finetune_tokens" in processed_df.columns
-            and "num_finetuned_tokens_real" in processed_df.columns
-        ):
-            mask = (
-                processed_df["num_finetune_tokens"].notna()
-                & processed_df["num_finetuned_tokens_real"].notna()
-                & (processed_df["num_finetune_tokens"] != 0)
-            )
-            processed_df["abs_difference_ft_tokens_pct"] = None
-            processed_df.loc[mask, "abs_difference_ft_tokens_pct"] = (
-                (
-                    processed_df.loc[mask, "num_finetune_tokens"]
-                    - processed_df.loc[mask, "num_finetuned_tokens_real"]
-                ).abs()
-                / processed_df.loc[mask, "num_finetune_tokens"]
-                * 100
-            )
-
-        hook = hooks.get(run_type)
-        if hook:
-            processed_df = hook(processed_df)
-
-        processed[run_type] = processed_df
+        processed[run_type] = frame
 
     return processed
 
 
-__all__ = ["extract_config_fields", "apply_processing"]
+def ensure_comparison_recipe_default(frame: pd.DataFrame) -> pd.DataFrame:
+    if (
+        "comparison_model_size" in frame.columns
+        and "comparison_model_recipe" in frame.columns
+    ):
+        result = frame.copy()
+        result["comparison_model_recipe"] = result["comparison_model_recipe"].fillna(
+            "Dolma1.7"
+        )
+        return result
+    return frame
+
+
+__all__ = ["apply_processing", "extract_config_fields", "merge_config_fields"]

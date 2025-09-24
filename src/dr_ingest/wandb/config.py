@@ -8,9 +8,11 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, Tuple
 
 from confection import Config, registry
 
-from . import config_registry  # noqa: F401
-from . import pattern_builders  # noqa: F401
-from . import hooks  # noqa: F401
+from . import (
+    config_registry,  # noqa: F401
+    hooks,  # noqa: F401
+    pattern_builders,  # noqa: F401
+)
 from .config_registry import wandb_value_converters
 
 if TYPE_CHECKING:  # pragma: no cover
