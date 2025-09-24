@@ -22,7 +22,11 @@ def ensure_column(
     if column not in target.columns:
         target[column] = default
     else:
-        target[column] = target[column].fillna(default)
+        if default is None:
+            # Avoid pandas fillna(None) error; leaving values as-is ensures column exists
+            pass
+        else:
+            target[column] = target[column].fillna(default)
     return target
 
 
