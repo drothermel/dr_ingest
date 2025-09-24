@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import pandas as pd
@@ -31,23 +32,46 @@ def coerce_to_numeric(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 
+SUFFIX_MULTIPLIERS = {
+    "M": 1e6,
+    "G": 1e9,
+    "B": 1e9,
+    "T": 1e12,
+}
+
+_NUMBER_SUFFIX_PATTERN = re.compile(
+    r"^\s*(?P<num>[+-]?\d+(?:\.\d+)?)\s*(?P<suffix>[A-Z]*)\s*$"
+)
+
+
 def convert_string_to_number(value_str: Any) -> Optional[float]:
     """Convert token strings with suffixes to numeric counts."""
-    if pd.isna(value_str):
+
+    if pd.isna(value_str):  # handles pd.NA, NaN
         return None
-    value_str = str(value_str).strip().upper()
-    if value_str in {"N/A", ""}:
+
+    text = str(value_str).strip().upper()
+    if text in {"", "N/A"}:
         return None
+
+    match = _NUMBER_SUFFIX_PATTERN.match(text)
+    if not match:
+        return None
+
     try:
-        if value_str.endswith("M"):
-            return float(value_str[:-1]) * 1e6
-        if value_str.endswith(("G", "B")):
-            return float(value_str[:-1]) * 1e9
-        if value_str.endswith("T"):
-            return float(value_str[:-2]) * 1e12
-        return float(value_str)
-    except (ValueError, TypeError):
+        base_value = float(match.group("num"))
+    except (TypeError, ValueError):
         return None
+
+    suffix = match.group("suffix") or ""
+    if not suffix:
+        return base_value
+
+    multiplier = SUFFIX_MULTIPLIERS.get(suffix[0])
+    if multiplier is None:
+        return None
+
+    return base_value * multiplier
 
 
 wandb_value_converters.register("timestamp.v1")(convert_timestamp)
