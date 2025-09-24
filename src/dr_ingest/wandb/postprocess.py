@@ -98,7 +98,10 @@ def apply_processing(
                 convert_timestamp
             )
 
-        if "comparison_model_size" in processed_df.columns:
+        if (
+            "comparison_model_size" in processed_df.columns
+            and "comparison_model_recipe" in processed_df.columns
+        ):
             processed_df["comparison_model_recipe"] = processed_df[
                 "comparison_model_recipe"
             ].fillna("Dolma1.7")
