@@ -114,7 +114,9 @@ def _collect_history(raw_path: Path, run_ids: set[str]) -> pd.DataFrame:
 
 def _collect_pretrain(full_path: Path) -> pd.DataFrame:
     df = pd.read_parquet(full_path)
-    combo_mask = df.apply(lambda row: (row["params"], row["data"]) in PRETRAIN_COMBOS, axis=1)
+    combo_mask = df.apply(
+        lambda row: (row["params"], row["data"]) in PRETRAIN_COMBOS, axis=1
+    )
     seed_mask = df["seed"].isin(PRETRAIN_ALLOWED_SEEDS)
     step_mask = df["step"].fillna(0) <= PRETRAIN_MAX_STEP
     mask = combo_mask & seed_mask & step_mask

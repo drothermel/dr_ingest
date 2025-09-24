@@ -1,0 +1,56 @@
+"""Pattern factory functions wired into Confection registries."""
+
+from __future__ import annotations
+
+import re
+from typing import Tuple
+
+from dr_ingest.wandb import constants as const
+from dr_ingest.wandb.config_registry import wandb_pattern_factories
+
+
+LITERAL_PREFIX = "literal:"
+EXTRA_COMPONENTS = {
+    "ANCHOR_START": "^",
+    "ANCHOR_END": "$",
+}
+
+
+def _constant_map() -> dict[str, str]:
+    return {name: getattr(const, name) for name in dir(const) if name.isupper()}
+
+
+def _fragment_map() -> dict[str, str]:
+    mapping = _constant_map()
+    mapping.update(EXTRA_COMPONENTS)
+    return mapping
+
+
+def _resolve_fragment(name: str, fragments: dict[str, str]) -> str:
+    if name.startswith(LITERAL_PREFIX):
+        return name[len(LITERAL_PREFIX) :]
+    if name in fragments:
+        return fragments[name]
+    raise KeyError(f"Unknown pattern fragment '{name}'")
+
+
+@wandb_pattern_factories.register("template.v1")
+def build_template_pattern(
+    *, run_type: str, template: str, name: str | None = None
+) -> Tuple[str, str, re.Pattern[str]]:
+    regex = template.format(**_constant_map())
+    compiled = re.compile(regex)
+    pattern_name = name or f"pattern_{abs(hash((run_type, regex)))}"
+    return pattern_name, run_type, compiled
+
+
+@wandb_pattern_factories.register("composite.v1")
+def build_composite_pattern(
+    *, run_type: str, components: list[str], name: str | None = None
+) -> Tuple[str, str, re.Pattern[str]]:
+    fragments = _fragment_map()
+    regex_parts = [_resolve_fragment(component, fragments) for component in components]
+    regex = "".join(regex_parts)
+    compiled = re.compile(regex)
+    pattern_name = name or f"pattern_{abs(hash((run_type, tuple(components))))}"
+    return pattern_name, run_type, compiled
