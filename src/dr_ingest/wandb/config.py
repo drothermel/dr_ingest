@@ -22,6 +22,7 @@ CONFIG_FILES: Tuple[Path, ...] = (
     CONFIG_DIR / "patterns.cfg",
     CONFIG_DIR / "processing.cfg",
     CONFIG_DIR / "hooks.cfg",
+    CONFIG_DIR / "metrics.cfg",
 )
 
 
@@ -103,6 +104,74 @@ def load_column_converters() -> Dict[str, Callable[[object], object]]:
     }
 
 
+@lru_cache(maxsize=1)
+def load_metric_defaults() -> Dict[str, object]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    keys_of_interest = {"default_label", "perplexity_default_metric"}
+    return {key: metrics_cfg.get(key) for key in keys_of_interest if key in metrics_cfg}
+
+
+@lru_cache(maxsize=1)
+def load_metric_aliases() -> Dict[str, str]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    aliases = metrics_cfg.get("aliases", {}) if isinstance(metrics_cfg, dict) else {}
+    return {str(k): str(v) for k, v in aliases.items()}
+
+
+@lru_cache(maxsize=1)
+def load_perplexity_tasks() -> Iterable[str]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    tasks_cfg = (
+        metrics_cfg.get("perplexity_tasks", {}) if isinstance(metrics_cfg, dict) else {}
+    )
+    names = tasks_cfg.get("names", []) if isinstance(tasks_cfg, dict) else []
+    return [str(name) for name in names]
+
+
+@lru_cache(maxsize=1)
+def load_perplexity_label_map() -> Dict[str, str]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    section = (
+        metrics_cfg.get("perplexity_map", {}) if isinstance(metrics_cfg, dict) else {}
+    )
+    return {str(k): str(v) for k, v in section.items()}
+
+
+@lru_cache(maxsize=1)
+def load_olmes_tasks() -> Iterable[str]:
+    return _load_task_list("olmes")
+
+
+@lru_cache(maxsize=1)
+def load_mmlu_tasks() -> Iterable[str]:
+    return _load_task_list("mmlu")
+
+
+@lru_cache(maxsize=1)
+def load_metric_names() -> Iterable[str]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    section = (
+        metrics_cfg.get("metric_names", {}) if isinstance(metrics_cfg, dict) else {}
+    )
+    names = section.get("names", []) if isinstance(section, dict) else []
+    return [str(name) for name in names]
+
+
+def _load_task_list(task_key: str) -> Iterable[str]:
+    cfg = load_raw_config()
+    metrics_cfg = cfg.get("metrics", {})  # type: ignore[arg-type]
+    tasks_section = (
+        metrics_cfg.get("tasks", {}) if isinstance(metrics_cfg, dict) else {}
+    )
+    names = tasks_section.get(task_key, []) if isinstance(tasks_section, dict) else []
+    return [str(name) for name in names]
+
+
 __all__ = [
     "CONFIG_DIR",
     "CONFIG_FILES",
@@ -116,4 +185,11 @@ __all__ = [
     "load_run_type_hooks",
     "load_value_converter_map",
     "load_column_converters",
+    "load_metric_defaults",
+    "load_metric_aliases",
+    "load_perplexity_tasks",
+    "load_perplexity_label_map",
+    "load_olmes_tasks",
+    "load_mmlu_tasks",
+    "load_metric_names",
 ]
