@@ -18,3 +18,8 @@ def test_convert_string_to_number_suffixes() -> None:
     assert convert_string_to_number("1.5G") == 1_500_000_000
     assert convert_string_to_number(" ") is None
     assert convert_string_to_number(None) is None
+    assert convert_string_to_number("2.5Mt") == 2_500_000
+    assert convert_string_to_number("4gt") == 4_000_000_000
+    assert convert_string_to_number("7B") == 7_000_000_000
+    assert convert_string_to_number("5T") == 5_000_000_000_000
+    assert convert_string_to_number("100XYZ") is None

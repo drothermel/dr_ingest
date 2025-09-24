@@ -34,16 +34,6 @@ def _resolve_fragment(name: str, fragments: dict[str, str]) -> str:
     raise KeyError(f"Unknown pattern fragment '{name}'")
 
 
-@wandb_pattern_factories.register("template.v1")
-def build_template_pattern(
-    *, run_type: str, template: str, name: str | None = None
-) -> Tuple[str, str, re.Pattern[str]]:
-    regex = template.format(**_constant_map())
-    compiled = re.compile(regex)
-    pattern_name = name or f"pattern_{abs(hash((run_type, regex)))}"
-    return pattern_name, run_type, compiled
-
-
 @wandb_pattern_factories.register("composite.v1")
 def build_composite_pattern(
     *, run_type: str, components: list[str], name: str | None = None
