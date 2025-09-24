@@ -16,6 +16,14 @@ from .config import (
     load_run_type_hooks,
 )
 from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
+from ..df_ops import (
+    apply_column_converters,
+    ensure_column,
+    fill_missing_values,
+    map_column_with_fallback,
+    maybe_update_cell,
+    rename_columns,
+)
 
 
 def extract_config_fields(
@@ -72,19 +80,16 @@ def apply_processing(
     for run_type, df in dataframes.items():
         processed_df = df.copy()
 
-        for old_col, new_col in effective_column_map.items():
-            if old_col in processed_df.columns:
-                processed_df = processed_df.rename(columns={old_col: new_col})
-
-        for col, default_val in defaults_map.items():
-            if col in processed_df.columns:
-                processed_df[col] = processed_df[col].fillna(default_val)
+        processed_df = rename_columns(processed_df, effective_column_map, inplace=True)
+        processed_df = fill_missing_values(processed_df, defaults_map, inplace=True)
 
         for recipe_col in recipe_columns:
-            if recipe_col in processed_df.columns:
-                processed_df[recipe_col] = processed_df[recipe_col].map(
-                    lambda x: recipe_mapping.get(x, x) if pd.notna(x) else x
-                )
+            processed_df = map_column_with_fallback(
+                processed_df,
+                recipe_col,
+                recipe_mapping,
+                inplace=True,
+            )
 
         if runs_df is not None and "run_id" in processed_df.columns:
             run_ids = processed_df["run_id"].tolist()
@@ -95,15 +100,25 @@ def apply_processing(
                     continue
                 for field, value in fields.items():
                     if field == "num_finetuned_tokens_real":
+                        processed_df = ensure_column(
+                            processed_df,
+                            field,
+                            None,
+                            inplace=True,
+                        )
                         processed_df.loc[run_idx[0], field] = value
                     elif field in processed_df.columns:
-                        current_val = processed_df.loc[run_idx[0], field]
-                        if pd.isna(current_val) or current_val == "N/A":
-                            processed_df.loc[run_idx[0], field] = str(value)
+                        processed_df = maybe_update_cell(
+                            processed_df,
+                            run_idx[0],
+                            field,
+                            str(value),
+                            inplace=True,
+                        )
 
-        for column, converter in column_converters.items():
-            if column in processed_df.columns:
-                processed_df[column] = processed_df[column].apply(converter)
+        processed_df = apply_column_converters(
+            processed_df, column_converters, inplace=True
+        )
 
         if (
             "comparison_model_size" in processed_df.columns
