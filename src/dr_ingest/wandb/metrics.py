@@ -1,5 +1,3 @@
-"""Metric label normalisation utilities."""
-
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -13,7 +11,7 @@ from dr_ingest.normalization import key_variants, normalize_key, split_by_known_
 
 
 @lru_cache(maxsize=1)
-def _default_resolver() -> "MetricLabelResolver":
+def _default_resolver() -> MetricLabelResolver:
     return MetricLabelResolver.from_config()
 
 
@@ -64,7 +62,7 @@ def _alias_lookup() -> dict[str, str]:
 def _perplexity_labels() -> set[str]:
     labels = set(_perplexity_label_map().values())
     labels.update(_alias_lookup().values())
-    return {label for label in labels}
+    return labels
 
 
 @lru_cache(maxsize=1)
@@ -136,12 +134,10 @@ def _format_task_metric(task: str, metric: str) -> str:
 
 @attrs.define(frozen=True)
 class MetricLabelResolver:
-    """Resolve raw metric labels to canonical names."""
-
     default_label: str
 
     @classmethod
-    def from_config(cls) -> "MetricLabelResolver":
+    def from_config(cls) -> MetricLabelResolver:
         return cls(default_label=_default_label())
 
     def resolve(self, value: Any, *, default: str | None = None) -> str:
@@ -237,4 +233,4 @@ class MetricLabelResolver:
         return normalize_key(value), None
 
 
-__all__ = ["canonicalize_metric_label", "MetricLabelResolver"]
+__all__ = ["MetricLabelResolver", "canonicalize_metric_label"]
