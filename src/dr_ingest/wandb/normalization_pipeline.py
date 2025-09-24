@@ -12,6 +12,7 @@ from .tokens import ensure_full_finetune_defaults, fill_missing_token_totals
 if TYPE_CHECKING:  # pragma: no cover
     from .processing_context import ProcessingContext
 
+
 @attrs.define(frozen=True)
 class RunNormalizationExecutor:
     """Apply processing context normalization steps in the correct order."""
