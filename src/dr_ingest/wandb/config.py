@@ -11,6 +11,7 @@ from confection import Config, registry
 from . import config_registry  # noqa: F401
 from . import pattern_builders  # noqa: F401
 from . import hooks  # noqa: F401
+from .config_registry import wandb_value_converters
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
@@ -87,6 +88,21 @@ def load_run_type_hooks() -> Dict[str, Callable[["pd.DataFrame"], "pd.DataFrame"
     return {}
 
 
+@lru_cache(maxsize=1)
+def load_value_converter_map() -> Dict[str, str]:
+    cfg = load_raw_config()
+    processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
+    return dict(processing_cfg.get("value_converter_map", {}))
+
+
+@lru_cache(maxsize=1)
+def load_column_converters() -> Dict[str, Callable[[object], object]]:
+    mapping = load_value_converter_map()
+    return {
+        column: wandb_value_converters.get(name) for column, name in mapping.items()
+    }
+
+
 __all__ = [
     "CONFIG_DIR",
     "CONFIG_FILES",
@@ -98,4 +114,6 @@ __all__ = [
     "load_column_renames",
     "load_fill_from_config_map",
     "load_run_type_hooks",
+    "load_value_converter_map",
+    "load_column_converters",
 ]

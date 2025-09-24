@@ -6,6 +6,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from .config_registry import wandb_value_converters
+
 
 def convert_timestamp(ts_str: Any) -> Optional[pd.Timestamp]:
     """Convert a timestamp string (6- or 8-component) to a pandas Timestamp."""
@@ -40,6 +42,10 @@ def convert_string_to_number(value_str: Any) -> Optional[float]:
         return float(value_str)
     except (ValueError, TypeError):
         return None
+
+
+wandb_value_converters.register("timestamp.v1")(convert_timestamp)
+wandb_value_converters.register("tokens_to_number.v1")(convert_string_to_number)
 
 
 __all__ = ["convert_timestamp", "convert_string_to_number"]

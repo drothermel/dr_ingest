@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, Optional
 import pandas as pd
 
 from .config import (
+    load_column_converters,
     load_column_renames,
     load_defaults,
     load_fill_from_config_map,
@@ -15,7 +16,6 @@ from .config import (
     load_run_type_hooks,
 )
 from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
-from .utils import convert_string_to_number, convert_timestamp
 
 
 def extract_config_fields(
@@ -64,6 +64,7 @@ def apply_processing(
     recipe_mapping = load_recipe_mapping()
     config_field_mapping = load_fill_from_config_map()
     hooks = load_run_type_hooks()
+    column_converters = load_column_converters()
 
     processed: Dict[str, pd.DataFrame] = {}
     recipe_columns = ["comparison_model_recipe", "initial_checkpoint_recipe"]
@@ -100,10 +101,9 @@ def apply_processing(
                         if pd.isna(current_val) or current_val == "N/A":
                             processed_df.loc[run_idx[0], field] = str(value)
 
-        if "timestamp" in processed_df.columns:
-            processed_df["timestamp"] = processed_df["timestamp"].apply(
-                convert_timestamp
-            )
+        for column, converter in column_converters.items():
+            if column in processed_df.columns:
+                processed_df[column] = processed_df[column].apply(converter)
 
         if (
             "comparison_model_size" in processed_df.columns
@@ -112,14 +112,6 @@ def apply_processing(
             processed_df["comparison_model_recipe"] = processed_df[
                 "comparison_model_recipe"
             ].fillna("Dolma1.7")
-
-        for col in [
-            "num_finetune_tokens",
-            "num_finetune_tokens_per_epoch",
-            "num_finetuned_tokens_real",
-        ]:
-            if col in processed_df.columns:
-                processed_df[col] = processed_df[col].apply(convert_string_to_number)
 
         mask = (
             processed_df["run_id"].str.contains("_Ft_")
