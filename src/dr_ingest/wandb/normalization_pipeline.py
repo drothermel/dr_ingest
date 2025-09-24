@@ -12,10 +12,6 @@ from .tokens import ensure_full_finetune_defaults, fill_missing_token_totals
 if TYPE_CHECKING:  # pragma: no cover
     from .processing_context import ProcessingContext
 
-
-_DEFAULT_RECIPE_COLUMNS = ["comparison_model_recipe", "initial_checkpoint_recipe"]
-
-
 @attrs.define(frozen=True)
 class RunNormalizationExecutor:
     """Apply processing context normalization steps in the correct order."""
@@ -34,7 +30,7 @@ class RunNormalizationExecutor:
     ) -> pd.DataFrame:
         result = frame.copy()
         result = self.context.apply_defaults(result)
-        result = self.context.map_recipes(result, list(_DEFAULT_RECIPE_COLUMNS))
+        result = self.context.map_recipes(result)
         result = self.context.apply_converters(result)
         result = self.context.rename_columns(result)
         result = ensure_full_finetune_defaults(result)
