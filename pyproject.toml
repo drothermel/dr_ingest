@@ -12,6 +12,7 @@ dependencies = [
     "catalogue>=2.0.10",
     "confection>=0.1.5",
     "duckdb>=1.1.0",
+    "clumper>=0.2.15",
     "memo>=0.2.4",
     "pandas>=2.3.2",
     "pyarrow>=21.0.0",

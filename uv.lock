@@ -42,6 +42,15 @@ wheels = [
 ]
 
 [[package]]
+name = "clumper"
+version = "0.2.15"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/f1/074d345999b301d514aa6d787e7dd4355f87f66ad642f4aabbdcba74aa48/clumper-0.2.15.tar.gz", hash = "sha256:5b243bc1eb666447dcdf32ac3239e5133b577f58c87ddb3b4cfb4a208b24ee2c", size = 18017 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/95/0e8eb5227a38940b13469e8277de3262f99af9da41e059e7e0cd61fdcf14/clumper-0.2.15-py2.py3-none-any.whl", hash = "sha256:323152d64330b908a772cf6b4ea9e5b6d8abde7b4d2ddca253251e75c895edb8", size = 18219 },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -70,6 +79,7 @@ source = { editable = "." }
 dependencies = [
     { name = "attrs" },
     { name = "catalogue" },
+    { name = "clumper" },
     { name = "confection" },
     { name = "duckdb" },
     { name = "memo" },
@@ -88,6 +98,7 @@ dev = [
 requires-dist = [
     { name = "attrs", specifier = ">=23.2.0" },
     { name = "catalogue", specifier = ">=2.0.10" },
+    { name = "clumper", specifier = ">=0.2.15" },
     { name = "confection", specifier = ">=0.1.5" },
     { name = "duckdb", specifier = ">=1.1.0" },
     { name = "memo", specifier = ">=0.2.4" },
