@@ -3,95 +3,95 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Tuple
 
-from confection import Config
+from confection import Config, registry
 
-from . import constants as const
+from . import config_registry  # noqa: F401
+from . import pattern_builders  # noqa: F401
+from . import hooks  # noqa: F401
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
 
-CONFIG_PATH = Path(__file__).resolve().parent / "config.cfg"
+CONFIG_DIR = Path(__file__).resolve().parents[3] / "configs" / "wandb"
+CONFIG_FILES: Tuple[Path, ...] = (
+    CONFIG_DIR / "base.cfg",
+    CONFIG_DIR / "patterns.cfg",
+    CONFIG_DIR / "processing.cfg",
+    CONFIG_DIR / "hooks.cfg",
+)
+
+
+def _load_single_config(path: Path) -> Config:
+    return Config().from_disk(path, interpolate=False)
 
 
 @lru_cache(maxsize=1)
-def load_config() -> Config:
-    """Load the Confection configuration from disk."""
-    return Config().from_disk(CONFIG_PATH, interpolate=False)
+def load_raw_config() -> Config:
+    configs = [_load_single_config(path) for path in CONFIG_FILES]
+    merged = configs[0]
+    for extra in configs[1:]:
+        merged = Config(merged).merge(extra)
+    return merged
+
+
+@lru_cache(maxsize=1)
+def load_resolved_config() -> Dict[str, object]:
+    cfg = load_raw_config()
+    return registry.resolve(cfg)
 
 
 @lru_cache(maxsize=1)
 def load_defaults() -> Dict[str, str]:
-    """Return default values used during post-processing."""
-    cfg = load_config()
+    cfg = load_raw_config()
     return dict(cfg["defaults"])  # type: ignore[arg-type]
 
 
 @lru_cache(maxsize=1)
 def load_recipe_mapping() -> Dict[str, str]:
-    """Return recipe name mapping used to normalise run metadata."""
-    cfg = load_config()
+    cfg = load_raw_config()
     return dict(cfg["recipe_mapping"])  # type: ignore[arg-type]
 
 
-def _constant_values() -> Dict[str, str]:
-    return {name: getattr(const, name) for name in dir(const) if name.isupper()}
-
-
-def _format_regex(template: str) -> str:
-    return template.format(**_constant_values())
-
-
 @lru_cache(maxsize=1)
-def load_pattern_specs() -> List[Tuple[str, str, str]]:
-    cfg = load_config()
-    patterns_cfg = dict(cfg.get("patterns", {}))  # type: ignore[arg-type]
-    specs: List[Tuple[str, str, str]] = []
-    for key, section in patterns_cfg.items():
-        run_type = section["run_type"]
-        regex_template = section["regex"]
-        regex = _format_regex(regex_template)
-        pattern_name = f"{key.upper()}_PATTERN"
-        specs.append((pattern_name, run_type, regex))
-    return specs
+def load_pattern_specs() -> Iterable[Tuple[str, str, object]]:
+    resolved = load_resolved_config()
+    patterns = resolved.get("patterns", {})
+    if isinstance(patterns, dict):
+        return patterns.values()
+    return patterns
 
 
 @lru_cache(maxsize=1)
 def load_column_renames() -> Dict[str, str]:
-    cfg = load_config()
+    cfg = load_raw_config()
     processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
-    column_cfg = processing_cfg.get("column_renames", {})
-    return dict(column_cfg)
+    return dict(processing_cfg.get("column_renames", {}))
 
 
 @lru_cache(maxsize=1)
 def load_fill_from_config_map() -> Dict[str, str]:
-    cfg = load_config()
+    cfg = load_raw_config()
     processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
-    fill_cfg = processing_cfg.get("fill_from_config", {})
-    return dict(fill_cfg)
+    return dict(processing_cfg.get("fill_from_config", {}))
 
 
 @lru_cache(maxsize=1)
 def load_run_type_hooks() -> Dict[str, Callable[["pd.DataFrame"], "pd.DataFrame"]]:
-    cfg = load_config()
-    processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
-    hooks_cfg = processing_cfg.get("run_type_hooks", {})
-    hooks: Dict[str, Callable[["pd.DataFrame"], "pd.DataFrame"]] = {}
-    for run_type, path in hooks_cfg.items():
-        module_name, func_name = path.split(":")
-        module = import_module(module_name)
-        hook = getattr(module, func_name)
-        hooks[run_type] = hook
-    return hooks
+    resolved = load_resolved_config()
+    rt_hooks = resolved.get("run_type_hooks", {})
+    if isinstance(rt_hooks, dict):
+        return rt_hooks
+    return {}
 
 
 __all__ = [
-    "CONFIG_PATH",
-    "load_config",
+    "CONFIG_DIR",
+    "CONFIG_FILES",
+    "load_raw_config",
+    "load_resolved_config",
     "load_defaults",
     "load_recipe_mapping",
     "load_pattern_specs",

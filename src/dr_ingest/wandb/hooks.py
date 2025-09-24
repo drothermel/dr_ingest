@@ -1,12 +1,15 @@
-"""Post-processing hooks for run-type specific tweaks."""
-
 from __future__ import annotations
 
+from typing import Callable
+
 import pandas as pd
+
+from dr_ingest.wandb.config_registry import wandb_hooks
 
 
 def normalize_matched(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure matched runs have normalised comparison metrics."""
+
     result = df.copy()
     if "comparison_metric" not in result.columns:
         result["comparison_metric"] = "pile"
@@ -24,6 +27,13 @@ def normalize_matched(df: pd.DataFrame) -> pd.DataFrame:
 
     result["comparison_metric"] = result["comparison_metric"].apply(_normalise_metric)
     return result
+
+
+@wandb_hooks.register("normalize_matched")
+def _make_normalize_matched() -> Callable[[pd.DataFrame], pd.DataFrame]:
+    """Registry factory returning the normalisation hook."""
+
+    return normalize_matched
 
 
 __all__ = ["normalize_matched"]

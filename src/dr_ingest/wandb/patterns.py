@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List
+from typing import Iterable
 
 import catalogue
 
@@ -22,11 +22,11 @@ class PatternSpec:
     regex: re.Pattern[str]
 
 
-PATTERN_SPECS: List[PatternSpec] = []
+PATTERN_SPECS: list[PatternSpec] = []
 
 
-def _register_pattern(name: str, run_type: str, pattern: str) -> None:
-    spec = PatternSpec(name=name, run_type=run_type, regex=re.compile(pattern))
+def _register_pattern(name: str, run_type: str, pattern: re.Pattern[str]) -> None:
+    spec = PatternSpec(name=name, run_type=run_type, regex=pattern)
     PATTERN_SPECS.append(spec)
 
     @pattern_registry.register(name)
@@ -34,8 +34,21 @@ def _register_pattern(name: str, run_type: str, pattern: str) -> None:
         return spec
 
 
-for pattern_name, run_type, regex in load_pattern_specs():
-    _register_pattern(pattern_name, run_type, regex)
+def _ensure_compiled(regex: object) -> re.Pattern[str]:
+    if isinstance(regex, re.Pattern):
+        return regex
+    if isinstance(regex, str):
+        return re.compile(regex)
+    raise TypeError(f"Unsupported regex type: {type(regex)!r}")
+
+
+def _initialise_patterns(pattern_specs: Iterable[tuple[str, str, object]]) -> None:
+    for name, run_type, regex in pattern_specs:
+        compiled = _ensure_compiled(regex)
+        _register_pattern(name, run_type, compiled)
+
+
+_initialise_patterns(load_pattern_specs())
 
 
 __all__ = [
