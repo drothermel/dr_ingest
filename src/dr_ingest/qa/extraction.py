@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tarfile
 from pathlib import Path
-from typing import Iterable, List
+from typing import List
 
 
 def list_tarballs(root_dir: Path, data: str, params: str, seed: int) -> List[Path]:

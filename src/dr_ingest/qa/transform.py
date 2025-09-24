@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, Dict, List
+from typing import Any
 
 from clumper import Clumper
+
 
 def build_file_metadata(
     records: Iterable[dict[str, Any]],
@@ -34,7 +35,7 @@ def build_file_metadata(
 
 
 def extract_question_payloads(
-    records: Iterable[dict[str, Any]]
+    records: Iterable[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Prepare per-question payloads by stripping metrics and renaming."""
 

@@ -85,9 +85,7 @@ def load_recipe_columns() -> Iterable[str]:
         else {}
     )
     columns = (
-        recipe_section.get("columns", [])
-        if isinstance(recipe_section, dict)
-        else []
+        recipe_section.get("columns", []) if isinstance(recipe_section, dict) else []
     )
     return [str(column) for column in columns]
 
