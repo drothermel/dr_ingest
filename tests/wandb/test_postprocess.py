@@ -36,6 +36,8 @@ def test_apply_processing_value_converters() -> None:
     assert processed.loc[0, "num_finetuned_tokens_real"] == 123
     assert processed.loc[0, "ckpt_steps"] == "main"
     assert processed.loc[0, "ckpt_data"] == "Dolma1.7"
+
+
 def test_hydration_executor_applies_summary_and_config_targets() -> None:
     df = pd.DataFrame({"run_id": ["run-1"]})
     runs_df = pd.DataFrame(

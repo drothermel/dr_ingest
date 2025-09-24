@@ -28,7 +28,11 @@ def apply_processing(
     )
     hydrator = HydrationExecutor.from_context(context)
     processed: Dict[str, pd.DataFrame] = {}
-    recipe_columns = ["comparison_model_recipe", "initial_checkpoint_recipe", "ckpt_data"]
+    recipe_columns = [
+        "comparison_model_recipe",
+        "initial_checkpoint_recipe",
+        "ckpt_data",
+    ]
 
     for run_type, df in dataframes.items():
         frame = df.copy()
@@ -44,4 +48,6 @@ def apply_processing(
         frame = context.apply_hook(run_type, frame)
         processed[run_type] = frame
     return processed
+
+
 __all__ = ["apply_processing"]

@@ -79,7 +79,9 @@ class HydrationExecutor:
         if ground_truth_source is None or not self.plan.stages:
             return frame
         assert "run_id" in frame.columns, "expected 'run_id' in extracted runs"
-        assert "run_id" in ground_truth_source.columns, "expected 'run_id' in payload source"
+        assert "run_id" in ground_truth_source.columns, (
+            "expected 'run_id' in payload source"
+        )
 
         run_ids = frame["run_id"].tolist()
         result = frame
