@@ -7,11 +7,8 @@ from typing import Any, Dict, Optional
 import pandas as pd
 
 from .processing_context import ProcessingContext
-from .tokens import (
-    ensure_full_finetune_defaults,
-    fill_missing_token_totals,
-)
 from .hydration import HydrationExecutor
+from .normalization_pipeline import RunNormalizationExecutor
 
 
 def apply_processing(
@@ -27,25 +24,12 @@ def apply_processing(
         overrides=defaults or {}, column_renames_override=column_map or {}
     )
     hydrator = HydrationExecutor.from_context(context)
+    normalizer = RunNormalizationExecutor.from_context(context)
     processed: Dict[str, pd.DataFrame] = {}
-    recipe_columns = [
-        "comparison_model_recipe",
-        "initial_checkpoint_recipe",
-        "ckpt_data",
-    ]
-
     for run_type, df in dataframes.items():
         frame = df.copy()
         frame = hydrator.apply(frame, ground_truth_source=runs_df)
-        frame = (
-            frame.pipe(context.apply_defaults)
-            .pipe(context.map_recipes, recipe_columns)
-            .pipe(context.apply_converters)
-            .pipe(context.rename_columns)
-            .pipe(ensure_full_finetune_defaults)
-            .pipe(fill_missing_token_totals)
-        )
-        frame = context.apply_hook(run_type, frame)
+        frame = normalizer.normalize(frame, run_type=run_type)
         processed[run_type] = frame
     return processed
 
