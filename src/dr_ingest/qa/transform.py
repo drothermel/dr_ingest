@@ -55,11 +55,13 @@ def extract_question_payloads(
 def preview_agg_metrics(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return aggregated metric rows for inspection."""
 
-    return (
-        Clumper(list(records))
-        .map(lambda d: {**d.get("metrics", {}), "doc_id": d.get("doc_id")})
-        .collect()
-    )
+    def _to_row(d: dict[str, Any]) -> dict[str, Any]:
+        metrics = d.get("metrics")
+        if not isinstance(metrics, dict):
+            metrics = {}
+        return {**metrics, "doc_id": d.get("doc_id")}
+
+    return Clumper(list(records)).map(_to_row).collect()
 
 
 def model_output_keys(records: Iterable[dict[str, Any]]) -> list[str]:

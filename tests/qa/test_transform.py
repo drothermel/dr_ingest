@@ -66,6 +66,16 @@ def test_preview_agg_metrics() -> None:
     assert metrics[0]["loss"] == 0.3
 
 
+def test_preview_agg_metrics_handles_missing() -> None:
+    records = [
+        {"doc_id": 3, "metrics": None},
+        {"doc_id": 4},
+    ]
+    metrics = preview_agg_metrics(records)
+    assert metrics[0] == {"doc_id": 3}
+    assert metrics[1] == {"doc_id": 4}
+
+
 def test_model_output_keys() -> None:
     keys = model_output_keys(extract_question_payloads(SAMPLE_RECORDS))
     assert keys == ["extra", "is_greedy", "logits_per_token"]
