@@ -174,6 +174,18 @@ def _load_task_list(task_key: str) -> Iterable[str]:
     return [str(name) for name in names]
 
 
+@lru_cache(maxsize=1)
+def load_summary_field_map() -> Dict[str, str]:
+    cfg = load_raw_config()
+    processing_cfg = cfg.get("processing", {})  # type: ignore[arg-type]
+    summary_map = (
+        processing_cfg.get("summary_field_map", {})
+        if isinstance(processing_cfg, dict)
+        else {}
+    )
+    return {str(key): str(value) for key, value in summary_map.items()}
+
+
 __all__ = [
     "CONFIG_DIR",
     "CONFIG_FILES",
@@ -194,4 +206,5 @@ __all__ = [
     "load_olmes_tasks",
     "load_mmlu_tasks",
     "load_metric_names",
+    "load_summary_field_map",
 ]

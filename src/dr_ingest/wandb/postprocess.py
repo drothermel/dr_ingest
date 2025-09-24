@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import pandas as pd
 
-from .config_enrichment import extract_config_fields, merge_config_fields
+from ..df_ops import (
+    apply_row_updates,
+    force_setter,
+    maybe_update_setter,
+    require_row_index,
+)
+from ..json_utils import safe_load_json
 from .processing_context import ProcessingContext
 from .tokens import (
-    compute_token_delta_percent,
     ensure_full_finetune_defaults,
     fill_missing_token_totals,
 )
@@ -31,42 +36,62 @@ def apply_processing(
     recipe_columns = ["comparison_model_recipe", "initial_checkpoint_recipe"]
 
     for run_type, df in dataframes.items():
-        frame = df.copy()
-        frame = context.rename_columns(frame)
-        frame = context.apply_defaults(frame)
-        frame = context.map_recipes(frame, recipe_columns)
-
-        if runs_df is not None and "run_id" in frame.columns:
-            run_ids = frame["run_id"].tolist()
-            if context.config_field_mapping:
-                config_data = extract_config_fields(
-                    runs_df, run_ids, context.config_field_mapping
-                )
-                frame = merge_config_fields(frame, config_data)
-
-        frame = context.apply_converters(frame)
-        frame = ensure_comparison_recipe_default(frame)
-        frame = ensure_full_finetune_defaults(frame)
-        frame = fill_missing_token_totals(frame)
-        frame = compute_token_delta_percent(frame)
+        frame = (
+            df.copy()
+            .pipe(context.rename_columns)
+            .pipe(context.apply_defaults)
+            .pipe(context.map_recipes, recipe_columns)
+            .pipe(merge_config_fields_from_runs, runs_df=runs_df, context=context)
+            .pipe(context.apply_converters)
+            .pipe(ensure_full_finetune_defaults)
+            .pipe(fill_missing_token_totals)
+        )
         frame = context.apply_hook(run_type, frame)
-
         processed[run_type] = frame
-
     return processed
 
 
-def ensure_comparison_recipe_default(frame: pd.DataFrame) -> pd.DataFrame:
-    if (
-        "comparison_model_size" in frame.columns
-        and "comparison_model_recipe" in frame.columns
+def extract_config_fields(
+    runs_df: pd.DataFrame,
+    run_ids: Iterable[str],
+    field_mapping: dict[str, str],
+) -> dict[str, dict[str, Any]]:
+    """Return updates for the provided run IDs."""
+    updates = {}
+    for run_id in run_ids:
+        run_row = runs_df.iloc[require_row_index(runs_df, "run_id", run_id)]
+        config = safe_load_json(run_row.get("config")) or {}
+        for target_field, source_field in field_mapping.items():
+            if config.get(source_field) is not None:
+                updates.setdefault(run_id, {})[target_field] = config[source_field]
+    return updates
+
+
+def merge_config_fields_from_runs(
+    frame: pd.DataFrame,
+    runs_df: Optional[pd.DataFrame],
+    context: ProcessingContext,
+) -> pd.DataFrame:
+    if runs_df is None or (
+        not context.config_field_mapping and not context.summary_field_mapping
     ):
-        result = frame.copy()
-        result["comparison_model_recipe"] = result["comparison_model_recipe"].fillna(
-            "Dolma1.7"
-        )
-        return result
+        return frame
+    assert all("run_id" in d.columns for d in [frame, runs_df]), "run_id required"
+
+    run_ids = frame["run_id"].tolist()
+    summary_updates = extract_config_fields(
+        runs_df,
+        run_ids,
+        context.summary_field_mapping,
+    )
+    frame = apply_row_updates(frame, summary_updates, force_setter)
+    optional_updates = extract_config_fields(
+        runs_df,
+        run_ids,
+        context.config_field_mapping,
+    )
+    frame = apply_row_updates(frame, optional_updates, maybe_update_setter)
     return frame
 
 
-__all__ = ["apply_processing", "extract_config_fields", "merge_config_fields"]
+__all__ = ["apply_processing", "extract_config_fields", "merge_config_fields_from_runs"]

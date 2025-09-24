@@ -6,7 +6,6 @@ from typing import Any, Callable, Iterable, Mapping
 
 import pandas as pd
 
-
 MissingMarkers = Iterable[Any]
 
 
@@ -117,6 +116,14 @@ def maybe_update_cell(
     return target
 
 
+def maybe_update_setter(
+    frame: pd.DataFrame, row_idx: int, field: str, value: Any
+) -> pd.DataFrame:
+    if field not in frame.columns:
+        return frame
+    return maybe_update_cell(frame, row_idx, field, str(value), inplace=True)
+
+
 def apply_if_column(
     df: pd.DataFrame,
     column: str,
@@ -134,6 +141,80 @@ def apply_if_column(
     return target
 
 
+def require_row_index(
+    df: pd.DataFrame,
+    column: str,
+    value: Any,
+) -> int:
+    """Return the unique row index matching ``column == value``.
+
+    Raises ``ValueError`` when no rows or multiple rows match.
+    """
+
+    matches = df.index[df[column] == value]
+    if len(matches) == 0:
+        raise ValueError(f"No rows found where {column} == {value!r}")
+    if len(matches) > 1:
+        raise ValueError(f"Multiple rows found where {column} == {value!r}")
+    return int(matches[0])
+
+
+def force_set_cell(
+    df: pd.DataFrame,
+    row_index: int,
+    column: str,
+    value: Any,
+    *,
+    default: Any = None,
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """Ensure the column exists and overwrite the value at ``row_index``."""
+
+    target = df if inplace else df.copy()
+    target = ensure_column(target, column, default, inplace=True)
+    target.at[row_index, column] = value
+    return target
+
+
+def force_setter(
+    frame: pd.DataFrame, row_idx: int, field: str, value: Any
+) -> pd.DataFrame:
+    return force_set_cell(frame, row_idx, field, value, inplace=True)
+
+
+def apply_row_updates(
+    df: pd.DataFrame,
+    updates: dict[str, dict[str, Any]],
+    setter: Callable[[pd.DataFrame, int, str, Any], pd.DataFrame],
+    *,
+    inplace: bool = False,
+) -> pd.DataFrame:
+    if not updates:
+        return df
+
+    target = df if inplace else df.copy()
+    assert "run_id" in target.columns, "expected 'run_id' column to apply updates"
+
+    for run_id, fields in updates.items():
+        row_idx = require_row_index(target, "run_id", run_id)
+        for field, value in fields.items():
+            target = setter(target, row_idx, field, value)
+    return target
+
+
+def masked_getter(df: pd.DataFrame, mask: pd.Series, column: str) -> Any:
+    """Get a value from a column only if the mask is True."""
+    return df.loc[mask, column].iloc[0]
+
+
+def masked_setter(
+    df: pd.DataFrame, mask: pd.Series, column: str, value: Any
+) -> pd.DataFrame:
+    """Set a value in a column only if the mask is True."""
+    df.loc[mask, column] = value
+    return df
+
+
 __all__ = [
     "ensure_column",
     "fill_missing_values",
@@ -142,4 +223,10 @@ __all__ = [
     "apply_column_converters",
     "maybe_update_cell",
     "apply_if_column",
+    "require_row_index",
+    "force_set_cell",
+    "force_setter",
+    "maybe_update_setter",
+    "apply_row_updates",
+    "masked_getter",
 ]

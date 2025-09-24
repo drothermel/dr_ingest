@@ -3,15 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+import pytest
 
 from dr_ingest.df_ops import (
     apply_column_converters,
     apply_if_column,
     ensure_column,
     fill_missing_values,
+    force_set_cell,
     map_column_with_fallback,
     maybe_update_cell,
     rename_columns,
+    require_row_index,
 )
 
 
@@ -72,3 +75,22 @@ def test_apply_if_column_runs_function() -> None:
     # missing column should leave DataFrame unchanged
     result2 = apply_if_column(df, "unknown", lambda s: s * 10)
     pd.testing.assert_frame_equal(result2, df)
+
+
+def test_require_row_index_success_and_errors() -> None:
+    df = _df({"run_id": ["a", "b"]})
+    assert require_row_index(df, "run_id", "a") == 0
+    with pytest.raises(ValueError):
+        require_row_index(df, "run_id", "missing")
+    dup_df = _df({"run_id": ["a", "a"]})
+    with pytest.raises(ValueError):
+        require_row_index(dup_df, "run_id", "a")
+
+
+def test_force_set_cell_ensures_column_and_sets_value() -> None:
+    df = _df({"run_id": ["a"]})
+    updated = force_set_cell(df, 0, "col", 5)
+    assert updated.loc[0, "col"] == 5
+    # inplace update
+    force_set_cell(df, 0, "col", 10, inplace=True)
+    assert df.loc[0, "col"] == 10

@@ -23,6 +23,14 @@ def convert_timestamp(ts_str: Any) -> Optional[pd.Timestamp]:
         return None
 
 
+def coerce_to_numeric(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Coerce a column to numeric."""
+    if column not in df.columns:
+        return df
+    df[column] = pd.to_numeric(df[column], errors="coerce")
+    return df
+
+
 def convert_string_to_number(value_str: Any) -> Optional[float]:
     """Convert token strings with suffixes to numeric counts."""
     if pd.isna(value_str):
@@ -44,6 +52,7 @@ def convert_string_to_number(value_str: Any) -> Optional[float]:
 
 wandb_value_converters.register("timestamp.v1")(convert_timestamp)
 wandb_value_converters.register("tokens_to_number.v1")(convert_string_to_number)
+wandb_value_converters.register("coerce_to_numeric.v1")(coerce_to_numeric)
 
 
 __all__ = ["convert_timestamp", "convert_string_to_number"]

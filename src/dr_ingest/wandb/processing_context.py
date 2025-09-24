@@ -14,6 +14,7 @@ from .config import (
     load_fill_from_config_map,
     load_recipe_mapping,
     load_run_type_hooks,
+    load_summary_field_map,
 )
 
 
@@ -23,6 +24,7 @@ class ProcessingContext:
     defaults: Dict[str, Any]
     recipe_mapping: Dict[str, str]
     config_field_mapping: Dict[str, str]
+    summary_field_mapping: Dict[str, str]
     column_converters: Dict[str, Any]
     run_type_hooks: Dict[str, Any]
 
@@ -33,6 +35,7 @@ class ProcessingContext:
         overrides: Dict[str, Any] | None = None,
         column_renames_override: Dict[str, str] | None = None,
         config_field_mapping_override: Dict[str, str] | None = None,
+        summary_field_mapping_override: Dict[str, str] | None = None,
     ) -> "ProcessingContext":
         defaults = dict(load_defaults())
         if overrides:
@@ -46,11 +49,16 @@ class ProcessingContext:
         if config_field_mapping_override:
             config_field_mapping.update(config_field_mapping_override)
 
+        summary_field_mapping = dict(load_summary_field_map())
+        if summary_field_mapping_override:
+            summary_field_mapping.update(summary_field_mapping_override)
+
         return cls(
             column_renames=column_renames,
             defaults=defaults,
             recipe_mapping=dict(load_recipe_mapping()),
             config_field_mapping=config_field_mapping,
+            summary_field_mapping=summary_field_mapping,
             column_converters=dict(load_column_converters()),
             run_type_hooks=dict(load_run_type_hooks()),
         )
