@@ -1,5 +1,12 @@
 """QA ingestion utilities."""
 
-from .extraction import list_tarballs, ensure_extracted
+from .extraction import ensure_extracted, list_tarballs
+from .schemas import ModelAnswerOutput, QuestionOutputData, TaskOutputData
 
-__all__ = ["list_tarballs", "ensure_extracted"]
+__all__ = [
+    "ensure_extracted",
+    "list_tarballs",
+    "ModelAnswerOutput",
+    "QuestionOutputData",
+    "TaskOutputData",
+]
