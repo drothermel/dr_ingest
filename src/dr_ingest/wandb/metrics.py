@@ -1,182 +1,176 @@
+"""Metric label normalization built on normalized string tokens."""
+
 from __future__ import annotations
 
-from collections.abc import Iterable
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
+from collections.abc import Sequence
 
-import attrs
 import pandas as pd
 
-from dr_ingest.normalization import key_variants, normalize_key, split_by_known_prefix
+from dr_ingest.normalization import normalize_key, normalize_str
+
+TokenSeq = tuple[str, ...]
 
 
-@lru_cache(maxsize=1)
-def _default_resolver() -> MetricLabelResolver:
-    return MetricLabelResolver.from_config()
+def _tokenize(value: str) -> TokenSeq:
+    normalized = normalize_str(value)
+    if not normalized:
+        return ()
+    return tuple(part for part in normalized.split(" ") if part)
 
 
-def canonicalize_metric_label(value: Any, default: str | None = None) -> str:
-    """Return a canonical metric label given a raw value."""
-
-    return _default_resolver().resolve(value, default=default)
-
-
-@lru_cache(maxsize=1)
-def _default_label() -> str:
-    from .config import load_metric_defaults
-
-    defaults = load_metric_defaults()
-    return str(defaults.get("default_label", "pile-valppl"))
+@dataclass(frozen=True)
+class TaskEntry:
+    canonical: str
+    tokens: TokenSeq
+    category: str
 
 
-@lru_cache(maxsize=1)
-def _perplexity_metric() -> str:
-    from .config import load_metric_defaults
-
-    defaults = load_metric_defaults()
-    return str(defaults.get("perplexity_default_metric", "valppl"))
+@dataclass(frozen=True)
+class MetricEntry:
+    canonical: str
+    tokens: TokenSeq
 
 
-@lru_cache(maxsize=1)
-def _perplexity_label_map() -> dict[str, str]:
-    from .config import load_perplexity_label_map
+@dataclass(frozen=True)
+class MetricCatalog:
+    tasks: Sequence[TaskEntry]
+    metrics_by_tokens: dict[TokenSeq, MetricEntry]
+    tasks_sorted: Sequence[TaskEntry]
+    default_task: TaskEntry
+    default_metric: MetricEntry
+    perplexity_tasks: set[str]
 
-    mapping = load_perplexity_label_map()
-    return {key.lower(): value for key, value in mapping.items()}
+    @classmethod
+    def from_config(cls) -> MetricCatalog:
+        from .config import load_metric_names, load_metric_task_groups
+
+        task_groups = load_metric_task_groups()
+        metric_names = list(load_metric_names())
+        if not metric_names:
+            raise ValueError(
+                "metrics.metric_names.names must define at least one metric"
+            )
+
+        metric_entries: dict[TokenSeq, MetricEntry] = {}
+        for raw_metric in metric_names:
+            tokens = _tokenize(raw_metric)
+            if not tokens:
+                continue
+            canonical = normalize_key(raw_metric)
+            metric_entries.setdefault(tokens, MetricEntry(canonical, tokens))
+
+        default_metric_tokens = _tokenize(metric_names[0])
+        default_metric_entry = metric_entries.get(default_metric_tokens)
+        if default_metric_entry is None:
+            default_metric_entry = MetricEntry(
+                canonical=normalize_key(metric_names[0]),
+                tokens=default_metric_tokens,
+            )
+
+        tasks: list[TaskEntry] = []
+        perplexity_tasks: set[str] = set()
+        default_task_entry: TaskEntry | None = None
+
+        for category, names in task_groups.items():
+            for raw_task in names:
+                tokens = _tokenize(raw_task)
+                if not tokens:
+                    continue
+                canonical = normalize_key(raw_task)
+                entry = TaskEntry(
+                    canonical=canonical, tokens=tokens, category=str(category)
+                )
+                tasks.append(entry)
+                if category == "perplexity":
+                    perplexity_tasks.add(canonical)
+                    if default_task_entry is None:
+                        default_task_entry = entry
+                if default_task_entry is None:
+                    default_task_entry = entry
+
+        if not tasks:
+            raise ValueError("metrics.tasks must define at least one task")
+        if default_task_entry is None:
+            default_task_entry = tasks[0]
+
+        tasks_sorted = sorted(tasks, key=lambda entry: len(entry.tokens), reverse=True)
+
+        return cls(
+            tasks=tuple(tasks),
+            metrics_by_tokens=metric_entries,
+            tasks_sorted=tuple(tasks_sorted),
+            default_task=default_task_entry,
+            default_metric=default_metric_entry,
+            perplexity_tasks=perplexity_tasks,
+        )
+
+    def match_task(self, tokens: TokenSeq) -> tuple[TaskEntry, int, int] | None:
+        for start in range(len(tokens)):
+            for entry in self.tasks_sorted:
+                length = len(entry.tokens)
+                if length == 0 or start + length > len(tokens):
+                    continue
+                if tokens[start : start + length] == entry.tokens:
+                    return entry, start, start + length
+        return None
+
+    def match_metric(self, tokens: TokenSeq) -> MetricEntry | None:
+        if not tokens:
+            return None
+        return self.metrics_by_tokens.get(tokens)
+
+    def format_label(self, task: TaskEntry, metric: MetricEntry) -> str:
+        if (
+            task.canonical in self.perplexity_tasks
+            and metric.canonical == self.default_metric.canonical
+        ):
+            return f"{task.canonical}-{metric.canonical}"
+        return f"{task.canonical}_{metric.canonical}"
+
+    @property
+    def default_label(self) -> str:
+        return self.format_label(self.default_task, self.default_metric)
 
 
-@lru_cache(maxsize=1)
-def _alias_lookup() -> dict[str, str]:
-    from .config import load_metric_aliases
-
-    aliases = {key.lower(): value for key, value in load_metric_aliases().items()}
-    for raw_key, canonical in _perplexity_label_map().items():
-        for variant in key_variants(raw_key):
-            aliases.setdefault(variant, canonical)
-        for variant in key_variants(canonical):
-            aliases.setdefault(variant, canonical)
-    return aliases
-
-
-@lru_cache(maxsize=1)
-def _perplexity_labels() -> set[str]:
-    labels = set(_perplexity_label_map().values())
-    labels.update(_alias_lookup().values())
-    return labels
-
-
-@lru_cache(maxsize=1)
-def _metric_name_set() -> set[str]:
-    from .config import load_metric_names
-
-    return {name.lower() for name in load_metric_names()}
-
-
-@lru_cache(maxsize=1)
-def _olmes_task_set() -> set[str]:
-    from .config import load_olmes_tasks
-
-    return {task.lower() for task in load_olmes_tasks()}
-
-
-@lru_cache(maxsize=1)
-def _mmlu_task_set() -> set[str]:
-    from .config import load_mmlu_tasks
-
-    return {task.lower() for task in load_mmlu_tasks()}
-
-
-@lru_cache(maxsize=1)
-def _perplexity_task_set() -> set[str]:
-    from .config import load_perplexity_tasks
-
-    tasks = {task.lower() for task in load_perplexity_tasks()}
-    for label in _perplexity_labels():
-        task_part = label.split("-")[0]
-        tasks.add(task_part.lower())
-        tasks.add(task_part.replace("-", "_").lower())
-    return tasks
-
-
-@lru_cache(maxsize=1)
-def _known_tasks() -> set[str]:
-    tasks = set(_olmes_task_set())
-    tasks.update(_mmlu_task_set())
-    tasks.update(_perplexity_task_set())
-    return tasks
-
-
-@lru_cache(maxsize=1)
-def _all_known_labels() -> set[str]:
-    labels = set(_perplexity_labels())
-    tasks = _known_tasks()
-    metrics = _metric_name_set()
-    for task in tasks:
-        for metric in metrics:
-            labels.add(f"{task}_{metric}")
-    return labels
-
-
-@lru_cache(maxsize=1)
-def _canonical_lookup() -> dict[str, str]:
-    lookup: dict[str, str] = {}
-    for label in _all_known_labels():
-        for variant in key_variants(label):
-            lookup.setdefault(variant, label)
-    return lookup
-
-
-def _format_task_metric(task: str, metric: str) -> str:
-    task_norm = normalize_key(task)
-    metric_norm = normalize_key(metric)
-    return f"{task_norm}_{metric_norm}" if metric_norm else task_norm
-
-
-@attrs.define(frozen=True)
+@dataclass(frozen=True)
 class MetricLabelResolver:
-    default_label: str
+    catalog: MetricCatalog
 
     @classmethod
     def from_config(cls) -> MetricLabelResolver:
-        return cls(default_label=_default_label())
+        return cls(MetricCatalog.from_config())
 
-    def resolve(self, value: Any, *, default: str | None = None) -> str:
-        default_label = default or self.default_label
+    def resolve(self, value: Any, default: str | None = None) -> str:
+        default_label = default or self.catalog.default_label
         text = self._normalize_input(value)
         if text is None:
             return default_label
 
-        variants = list(key_variants(text))
-        canonical_lookup = _canonical_lookup()
-        alias_lookup = _alias_lookup()
-        known_tasks = tuple(_known_tasks())
-        perplexity_task_set = _perplexity_task_set()
-        perplexity_metric = _perplexity_metric()
-
-        canonical = self._lookup_canonical_variants(variants, canonical_lookup)
-        if canonical:
-            return canonical
-
-        alias_target = self._resolve_alias(variants, alias_lookup)
-        if alias_target:
-            canonical_alias = self._lookup_canonical(alias_target, canonical_lookup)
-            return canonical_alias or alias_target
-
-        task, metric = self._split_task_metric(text, known_tasks)
-        if metric is None:
-            task_normalized = normalize_key(task)
-            if (
-                task_normalized in perplexity_task_set
-                or task.lower() in perplexity_task_set
-            ):
-                label = f"{task_normalized.replace('_', '-')}-{perplexity_metric}"
-                canonical_label = self._lookup_canonical(label, canonical_lookup)
-                return canonical_label or label
+        tokens = _tokenize(text)
+        if not tokens:
             return default_label
 
-        candidate = _format_task_metric(task, metric)
-        canonical_candidate = self._lookup_canonical(candidate, canonical_lookup)
-        return canonical_candidate or default_label
+        match = self.catalog.match_task(tokens)
+        if match is None:
+            return default_label
+
+        task_entry, _, end_index = match
+        remaining_tokens = tokens[end_index:]
+
+        metric_entry = self.catalog.match_metric(remaining_tokens)
+        if metric_entry is not None:
+            return self.catalog.format_label(task_entry, metric_entry)
+
+        if (
+            not remaining_tokens
+            and task_entry.canonical in self.catalog.perplexity_tasks
+        ):
+            return self.catalog.format_label(task_entry, self.catalog.default_metric)
+
+        return default_label
 
     @staticmethod
     def _normalize_input(value: Any) -> str | None:
@@ -187,50 +181,20 @@ class MetricLabelResolver:
         text = str(value).strip()
         return text or None
 
-    @staticmethod
-    def _lookup_canonical_variants(
-        variants: Iterable[str], lookup: dict[str, str]
-    ) -> str | None:
-        for variant in variants:
-            if variant in lookup:
-                return lookup[variant]
-            lowered = variant.lower()
-            if lowered in lookup:
-                return lookup[lowered]
-        return None
 
-    @staticmethod
-    def _resolve_alias(
-        variants: Iterable[str], alias_lookup: dict[str, str]
-    ) -> str | None:
-        for variant in variants:
-            alias_target = alias_lookup.get(variant)
-            if alias_target:
-                return alias_target
-            alias_target = alias_lookup.get(variant.lower())
-            if alias_target:
-                return alias_target
-        return None
-
-    @staticmethod
-    def _lookup_canonical(label: str, lookup: dict[str, str]) -> str | None:
-        for variant in key_variants(label):
-            if variant in lookup:
-                return lookup[variant]
-            result = lookup.get(variant.lower())
-            if result is not None:
-                return result
-        return None
-
-    @staticmethod
-    def _split_task_metric(
-        value: str,
-        known_tasks: Iterable[str],
-    ) -> tuple[str, str | None]:
-        prefix, remainder = split_by_known_prefix(value, known_tasks)
-        if remainder:
-            return prefix, normalize_key(remainder)
-        return normalize_key(value), None
+@lru_cache(maxsize=1)
+def _default_resolver() -> MetricLabelResolver:
+    return MetricLabelResolver.from_config()
 
 
-__all__ = ["MetricLabelResolver", "canonicalize_metric_label"]
+def canonicalize_metric_label(value: Any, default: str | None = None) -> str:
+    return _default_resolver().resolve(value, default=default)
+
+
+def parse_metric_label(value: Any) -> tuple[str | None, str | None, str | None]:
+    """Parse a metric label into (task, metric, unmatched) components."""
+
+    raise NotImplementedError
+
+
+__all__ = ["MetricLabelResolver", "canonicalize_metric_label", "parse_metric_label"]

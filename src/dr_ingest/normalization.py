@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
 DEFAULT_DELIMITERS = ("-", "_", " ", "/")
+DELIMITERS = ("-", "_", "/")
+SPACE_NORM = re.compile(r"\s+")
+SPLIT_ALPHANUMERIC = re.compile(r"[A-Za-z]+|[0-9]+(?:\.[0-9]+)?")
+
+
+def normalize_str(value: str) -> list[str]:
+    result = value.strip().lower()
+    for delimiter in DELIMITERS:
+        result = result.replace(delimiter, " ")
+    result = SPACE_NORM.sub(" ", result)
+    return result
 
 
 def any_key_lookup(keys: Iterable[str], mapping: dict[str, Any]) -> Any | None:
