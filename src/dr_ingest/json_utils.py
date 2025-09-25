@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 
 
-def safe_load_json(payload: Any) -> Dict[str, Any] | None:
+def safe_load_json(payload: Any) -> dict[str, Any] | None:
     """Load JSON from strings or mappings, returning ``None`` on failure."""
 
     if payload is None or (isinstance(payload, float) and pd.isna(payload)):

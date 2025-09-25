@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from clumper import Clumper
+
+TASK_METRIC_NUM_PARTS = 3
+TASK_ONLY_NUM_PARTS = 2
 
 
 def select_oe_eval_metrics(summary: Mapping[str, Any]) -> dict[str, Any]:
@@ -17,9 +21,9 @@ def group_oe_metrics_by_task(metrics: Mapping[str, Any]) -> dict[str, Any]:
         if value is None:
             continue
         parts = key.split("/")
-        if len(parts) not in {2, 3}:
+        if len(parts) not in {TASK_ONLY_NUM_PARTS, TASK_METRIC_NUM_PARTS}:
             continue
-        if len(parts) == 3:
+        if len(parts) == TASK_METRIC_NUM_PARTS:
             _, task, metric = parts
             existing = grouped.get(task)
             if not isinstance(existing, dict):
@@ -79,7 +83,7 @@ def normalize_oe_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
 
 
 __all__ = [
+    "group_oe_metrics_by_task",
     "normalize_oe_summary",
     "select_oe_eval_metrics",
-    "group_oe_metrics_by_task",
 ]

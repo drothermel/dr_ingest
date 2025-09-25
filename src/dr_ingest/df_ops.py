@@ -1,8 +1,7 @@
-"""Reusable pandas DataFrame helper utilities."""
-
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -16,17 +15,13 @@ def ensure_column(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Ensure a column exists and fill missing entries with a default value."""
-
     target = df if inplace else df.copy()
     if column not in target.columns:
         target[column] = default
+    elif default is None:
+        pass
     else:
-        if default is None:
-            # Avoid pandas fillna(None) error; leaving values as-is ensures column exists
-            pass
-        else:
-            target[column] = target[column].fillna(default)
+        target[column] = target[column].fillna(default)
     return target
 
 
@@ -36,8 +31,6 @@ def fill_missing_values(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Fill NaNs/None in multiple columns with provided defaults."""
-
     target = df if inplace else df.copy()
     for column, default in defaults.items():
         if column in target.columns:
@@ -51,8 +44,6 @@ def rename_columns(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Rename columns using a provided mapping without failing on missing keys."""
-
     target = df if inplace else df.copy()
     existing_map = {old: new for old, new in mapping.items() if old in target.columns}
     if existing_map:
@@ -67,8 +58,6 @@ def map_column_with_fallback(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Map values in a column via dict while preserving unknown entries."""
-
     if column not in df.columns:
         return df if inplace else df.copy()
 
@@ -89,8 +78,6 @@ def apply_column_converters(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Apply a mapping of column -> converter callable to a DataFrame."""
-
     target = df if inplace else df.copy()
     for column, converter in converters.items():
         if column in target.columns:
@@ -107,16 +94,14 @@ def maybe_update_cell(
     missing_markers: MissingMarkers = (None, "N/A"),
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Update a single cell only if its current value is considered missing."""
-
     target = df if inplace else df.copy()
     if column not in target.columns or row_index not in target.index:
         return target
 
-    current = target.at[row_index, column]
+    current = target.loc[row_index, column]
     is_missing = pd.isna(current) or current in missing_markers
     if is_missing:
-        target.at[row_index, column] = value
+        target.loc[row_index, column] = value
     return target
 
 
@@ -135,8 +120,6 @@ def apply_if_column(
     *,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Apply a function to a column only if it exists."""
-
     if column not in df.columns:
         return df if inplace else df.copy()
 
@@ -150,11 +133,6 @@ def require_row_index(
     column: str,
     value: Any,
 ) -> int:
-    """Return the unique row index matching ``column == value``.
-
-    Raises ``ValueError`` when no rows or multiple rows match.
-    """
-
     matches = df.index[df[column] == value]
     if len(matches) == 0:
         raise ValueError(f"No rows found where {column} == {value!r}")
@@ -172,11 +150,9 @@ def force_set_cell(
     default: Any = None,
     inplace: bool = False,
 ) -> pd.DataFrame:
-    """Ensure the column exists and overwrite the value at ``row_index``."""
-
     target = df if inplace else df.copy()
     target = ensure_column(target, column, default, inplace=True)
-    target.at[row_index, column] = value
+    target.loc[row_index, column] = value
     return target
 
 
@@ -207,8 +183,6 @@ def apply_row_updates(
 
 
 def masked_getter(df: pd.DataFrame, mask: pd.Series, column: str) -> Any:
-    """Return the first value where ``mask`` is true or ``None`` if empty."""
-
     if column not in df.columns:
         return None
 
@@ -221,23 +195,22 @@ def masked_getter(df: pd.DataFrame, mask: pd.Series, column: str) -> Any:
 def masked_setter(
     df: pd.DataFrame, mask: pd.Series, column: str, value: Any
 ) -> pd.DataFrame:
-    """Set a value in a column only if the mask is True."""
     df.loc[mask, column] = value
     return df
 
 
 __all__ = [
+    "apply_column_converters",
+    "apply_if_column",
+    "apply_row_updates",
     "ensure_column",
     "fill_missing_values",
-    "rename_columns",
-    "map_column_with_fallback",
-    "apply_column_converters",
-    "maybe_update_cell",
-    "apply_if_column",
-    "require_row_index",
     "force_set_cell",
     "force_setter",
-    "maybe_update_setter",
-    "apply_row_updates",
+    "map_column_with_fallback",
     "masked_getter",
+    "maybe_update_cell",
+    "maybe_update_setter",
+    "rename_columns",
+    "require_row_index",
 ]

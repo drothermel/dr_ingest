@@ -25,12 +25,12 @@ def test_classify_sample_runs() -> None:
 
     # We expect known run IDs to fall into the right run types
     ft_run = "2025_08_30-16_54_48_test_finetune_DD-dolma1_7-4M_Ft_--learning_rate=5e-05"
-    dpo_run = "2025_08_27-07_52_26_test_dpo_tune_cache_dd__dolma1_7-4M__main__100Mt_lr=5e-06_default_--learning_rate=2e-07"
+    dpo_run = "2025_08_27-07_52_26_test_dpo_tune_cache_dd__dolma1_7-4M__main__100Mt_lr=5e-06_default_--learning_rate=2e-07"  # noqa: E501
     matched_run = "250912-172812_match_150M_c4_finetune_100Mtx1_DD-d17-530M-6250-2"
 
-    assert ft_run in frames["simple_ft"].run_id.values
-    assert dpo_run in frames["dpo"].run_id.values
-    assert matched_run in frames["matched"].run_id.values
+    assert ft_run in frames["simple_ft"].run_id.to_numpy()
+    assert dpo_run in frames["dpo"].run_id.to_numpy()
+    assert matched_run in frames["matched"].run_id.to_numpy()
 
 
 def test_classification_log_records_events() -> None:

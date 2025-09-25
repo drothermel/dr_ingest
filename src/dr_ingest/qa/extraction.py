@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import tarfile
 from pathlib import Path
-from typing import List
 
 
-def list_tarballs(root_dir: Path, data: str, params: str, seed: int) -> List[Path]:
+def list_tarballs(root_dir: Path, data: str, params: str, seed: int) -> list[Path]:
     """Return sorted tar.gz files for the given dataset/config tuple."""
 
     target_dir = root_dir / data / params / f"seed-{seed}"
@@ -29,4 +28,4 @@ def ensure_extracted(tar_path: Path, dest_root: Path) -> Path:
     return target_dir
 
 
-__all__ = ["list_tarballs", "ensure_extracted"]
+__all__ = ["ensure_extracted", "list_tarballs"]

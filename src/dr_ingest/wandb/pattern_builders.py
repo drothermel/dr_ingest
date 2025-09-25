@@ -1,13 +1,8 @@
-"""Pattern factory functions wired into Confection registries."""
-
 from __future__ import annotations
 
 import re
-from typing import Tuple
 
 from dr_ingest.wandb import constants as const
-from dr_ingest.wandb.config_registry import wandb_pattern_factories
-
 
 LITERAL_PREFIX = "literal:"
 EXTRA_COMPONENTS = {
@@ -34,10 +29,9 @@ def _resolve_fragment(name: str, fragments: dict[str, str]) -> str:
     raise KeyError(f"Unknown pattern fragment '{name}'")
 
 
-@wandb_pattern_factories.register("composite.v1")
 def build_composite_pattern(
     *, run_type: str, components: list[str], name: str | None = None
-) -> Tuple[str, str, re.Pattern[str]]:
+) -> tuple[str, str, re.Pattern[str]]:
     fragments = _fragment_map()
     regex_parts = [_resolve_fragment(component, fragments) for component in components]
     regex = "".join(regex_parts)

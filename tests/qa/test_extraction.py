@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tarfile
+from pathlib import Path
 
 from dr_ingest.qa import ensure_extracted, list_tarballs
 
