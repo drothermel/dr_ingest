@@ -1,12 +1,10 @@
-"""Utilities for normalising fine-tuning token values."""
-
 from __future__ import annotations
 
 import pandas as pd
 
-from ..df_ops import ensure_column, masked_setter
-from .constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
-from .utils import coerce_to_numeric
+from dr_ingest.df_ops import ensure_column, masked_setter
+from dr_ingest.normalization import df_coerce_to_numeric
+from dr_ingest.wandb.constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
 
 FULL_TOTAL_TOKENS = DEFAULT_FULL_FT_EPOCHS * ALL_FT_TOKENS
 REQUIRED_TOKEN_COLS = {"num_finetune_tokens_per_epoch", "num_finetune_epochs"}
@@ -19,8 +17,6 @@ TOK_DEFAULT_VALS = {
 
 
 def ensure_full_finetune_defaults(df: pd.DataFrame) -> pd.DataFrame:
-    """Fill token columns for runs that contain the ``_Ft_`` marker."""
-
     if "run_id" not in df.columns:
         return df
 
@@ -33,16 +29,14 @@ def ensure_full_finetune_defaults(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fill_missing_token_totals(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute total fine-tune tokens when epoch and per-epoch values exist."""
-
     if not REQUIRED_TOKEN_COLS.issubset(df.columns):
         return df
 
     result = df.copy()
     result = ensure_column(result, "num_finetune_tokens", None)
-    result = coerce_to_numeric(result, "num_finetune_tokens")
-    result = coerce_to_numeric(result, "num_finetune_tokens_per_epoch")
-    result = coerce_to_numeric(result, "num_finetune_epochs")
+    result = df_coerce_to_numeric(result, "num_finetune_tokens")
+    result = df_coerce_to_numeric(result, "num_finetune_tokens_per_epoch")
+    result = df_coerce_to_numeric(result, "num_finetune_epochs")
 
     calc_ft_toks_mask = (
         result["num_finetune_tokens_per_epoch"].notna()

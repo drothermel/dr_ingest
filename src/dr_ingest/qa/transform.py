@@ -78,6 +78,6 @@ def model_output_keys(records: Iterable[dict[str, Any]]) -> list[str]:
 __all__ = [
     "build_file_metadata",
     "extract_question_payloads",
-    "preview_agg_metrics",
     "model_output_keys",
+    "preview_agg_metrics",
 ]

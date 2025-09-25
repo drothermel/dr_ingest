@@ -1,31 +1,26 @@
-"""Post-processing pipeline for classified WandB runs."""
-
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pandas as pd
 
-from .processing_context import ProcessingContext
 from .hydration import HydrationExecutor
 from .normalization_pipeline import RunNormalizationExecutor
+from .processing_context import ProcessingContext
 
 
 def apply_processing(
-    dataframes: Dict[str, pd.DataFrame],
-    defaults: Optional[Dict[str, Any]] = None,
-    column_map: Optional[Dict[str, str]] = None,
-    runs_df: Optional[pd.DataFrame] = None,
-    history_df: Optional[pd.DataFrame] = None,
-) -> Dict[str, pd.DataFrame]:
-    """Normalise extracted run data across run types."""
-
+    dataframes: dict[str, pd.DataFrame],
+    defaults: dict[str, Any] | None = None,
+    column_map: dict[str, str] | None = None,
+    runs_df: pd.DataFrame | None = None,
+) -> dict[str, pd.DataFrame]:
     context = ProcessingContext.from_config(
         overrides=defaults or {}, column_renames_override=column_map or {}
     )
     hydrator = HydrationExecutor.from_context(context)
     normalizer = RunNormalizationExecutor.from_context(context)
-    processed: Dict[str, pd.DataFrame] = {}
+    processed: dict[str, pd.DataFrame] = {}
     for run_type, df in dataframes.items():
         frame = df.copy()
         frame = hydrator.apply(frame, ground_truth_source=runs_df)

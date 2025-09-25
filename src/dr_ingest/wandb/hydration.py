@@ -1,20 +1,19 @@
-"""Utilities for hydrating extracted runs with WandB payload data."""
-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, Callable
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import pandas as pd
 
-from ..df_ops import (
+from dr_ingest.df_ops import (
     apply_row_updates,
     ensure_column,
     force_setter,
     maybe_update_setter,
     require_row_index,
 )
-from ..json_utils import safe_load_json
+from dr_ingest.json_utils import safe_load_json
 
 if TYPE_CHECKING:  # pragma: no cover
     from .processing_context import ProcessingContext
@@ -25,21 +24,17 @@ Setter = Callable[[pd.DataFrame, int, str, Any], pd.DataFrame]
 
 @attrs.define(frozen=True)
 class HydrationStageConfig:
-    """Configuration for a single hydration stage."""
-
     source_column: str
-    field_map: Dict[str, str]
+    field_map: dict[str, str]
     setter: Setter
 
 
 @attrs.define(frozen=True)
 class HydrationPlan:
-    """Ordered plan describing how to hydrate runs from ground-truth payloads."""
-
-    stages: Tuple[HydrationStageConfig, ...]
+    stages: tuple[HydrationStageConfig, ...]
 
     @classmethod
-    def from_context(cls, context: "ProcessingContext") -> "HydrationPlan":
+    def from_context(cls, context: ProcessingContext) -> HydrationPlan:
         stages: list[HydrationStageConfig] = []
         if context.summary_field_mapping:
             stages.append(
@@ -62,12 +57,10 @@ class HydrationPlan:
 
 @attrs.define(frozen=True)
 class HydrationExecutor:
-    """Apply a hydration plan to populate extracted run metadata."""
-
     plan: HydrationPlan
 
     @classmethod
-    def from_context(cls, context: "ProcessingContext") -> "HydrationExecutor":
+    def from_context(cls, context: ProcessingContext) -> HydrationExecutor:
         return cls(HydrationPlan.from_context(context))
 
     def apply(
@@ -86,7 +79,7 @@ class HydrationExecutor:
         run_ids = frame["run_id"].tolist()
         result = frame
         for stage in self.plan.stages:
-            for target_field in stage.field_map.keys():
+            for target_field in stage.field_map:
                 result = ensure_column(result, target_field, None, inplace=True)
             updates = _collect_stage_updates(
                 ground_truth_source, run_ids, stage.source_column, stage.field_map
@@ -99,7 +92,7 @@ def _collect_stage_updates(
     runs_df: pd.DataFrame,
     run_ids: Iterable[str],
     source_column: str,
-    field_map: Dict[str, str],
+    field_map: dict[str, str],
 ) -> dict[str, dict[str, Any]]:
     if not field_map:
         return {}

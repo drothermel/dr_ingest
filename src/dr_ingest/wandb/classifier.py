@@ -1,9 +1,8 @@
-"""Run-ID classification utilities built on the pattern registry."""
-
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Iterator, List, Tuple
+from typing import Any
 
 import pandas as pd
 from memo import memlist
@@ -15,27 +14,25 @@ from .patterns import PATTERN_SPECS
 class RunClassification:
     run_id: str
     run_type: str
-    metadata: Dict[str, str | None]
+    metadata: dict[str, str | None]
 
 
-CLASSIFICATION_LOG: List[Dict[str, Any]] = []
+CLASSIFICATION_LOG: list[dict[str, Any]] = []
 _record_classification = memlist(data=CLASSIFICATION_LOG)
 
 
 @_record_classification
-def _log_event(**kwargs: Any) -> Dict[str, Any]:  # pragma: no cover - memo hook
+def _log_event(**kwargs: Any) -> dict[str, Any]:  # pragma: no cover - memo hook
     return kwargs
 
 
-def classify_run_id(run_id: str) -> Tuple[str, Dict[str, str | None]]:
-    """Return the run type and extracted metadata for a run identifier."""
+def classify_run_id(run_id: str) -> tuple[str, dict[str, str | None]]:
     run_type, extracted = classify_run_id_type_and_extract(run_id)
     _log_event(run_id=run_id, run_type=run_type, pattern=extracted.get("pattern_name"))
     return run_type, extracted
 
 
-def classify_run_id_type_and_extract(run_id: str) -> Tuple[str, Dict[str, str | None]]:
-    """Match a run ID against the registered patterns."""
+def classify_run_id_type_and_extract(run_id: str) -> tuple[str, dict[str, str | None]]:
     pattern_match = _match_registered_pattern(run_id)
     if pattern_match is not None:
         return pattern_match
@@ -51,9 +48,7 @@ def parse_and_group_run_ids(
     df: pd.DataFrame,
     run_id_col: str = "run_id",
     drop_run_types: Iterable[str] | None = ("old",),
-) -> Dict[str, List[Dict[str, str | None]]]:
-    """Group run IDs by run type and attach extracted fields."""
-
+) -> dict[str, list[dict[str, str | None]]]:
     classifications = list(iter_classified_runs(df, run_id_col=run_id_col))
     grouped = group_classifications_by_type(
         classifications, drop_run_types=drop_run_types
@@ -64,10 +59,9 @@ def parse_and_group_run_ids(
 
 
 def convert_groups_to_dataframes(
-    grouped_data: Dict[str, List[Dict[str, str | None]]],
-) -> Dict[str, pd.DataFrame]:
-    """Convert grouped run metadata to DataFrames keyed by run type."""
-    dataframes: Dict[str, pd.DataFrame] = {}
+    grouped_data: dict[str, list[dict[str, str | None]]],
+) -> dict[str, pd.DataFrame]:
+    dataframes: dict[str, pd.DataFrame] = {}
     for run_type, records in grouped_data.items():
         if records:
             df = pd.DataFrame(records)
@@ -81,8 +75,6 @@ def convert_groups_to_dataframes(
 def iter_classified_runs(
     df: pd.DataFrame, *, run_id_col: str = "run_id"
 ) -> Iterator[RunClassification]:
-    """Yield run classifications from a DataFrame."""
-
     if run_id_col not in df.columns:
         raise KeyError(f"Column '{run_id_col}' not found in DataFrame")
 
@@ -95,11 +87,9 @@ def group_classifications_by_type(
     classifications: Iterable[RunClassification],
     *,
     drop_run_types: Iterable[str] | None = None,
-) -> Dict[str, List[Dict[str, str | None]]]:
-    """Group classifications by run type, optionally dropping some types."""
-
-    drop_set = {rtype for rtype in (drop_run_types or [])}
-    grouped: Dict[str, List[Dict[str, str | None]]] = {}
+) -> dict[str, list[dict[str, str | None]]]:
+    drop_set = set(drop_run_types or [])
+    grouped: dict[str, list[dict[str, str | None]]] = {}
 
     for classification in classifications:
         if classification.run_type in drop_set:
@@ -112,14 +102,14 @@ def group_classifications_by_type(
 
 
 def _sorted_metadata(
-    records: List[Dict[str, str | None]],
-) -> List[Dict[str, str | None]]:
+    records: list[dict[str, str | None]],
+) -> list[dict[str, str | None]]:
     return sorted(
         records, key=lambda x: (x.get("run_id") or "", x.get("pattern_name") or "")
     )
 
 
-def _match_registered_pattern(run_id: str) -> Tuple[str, Dict[str, str | None]] | None:
+def _match_registered_pattern(run_id: str) -> tuple[str, dict[str, str | None]] | None:
     for spec in PATTERN_SPECS:
         match = spec.regex.match(run_id)
         if match:
@@ -129,7 +119,7 @@ def _match_registered_pattern(run_id: str) -> Tuple[str, Dict[str, str | None]] 
     return None
 
 
-def _classify_legacy_run(run_id: str) -> Tuple[str, Dict[str, str | None]] | None:
+def _classify_legacy_run(run_id: str) -> tuple[str, dict[str, str | None]] | None:
     if (
         "main_default" in run_id
         and "dpo" not in run_id
@@ -143,8 +133,8 @@ __all__ = [
     "CLASSIFICATION_LOG",
     "classify_run_id",
     "classify_run_id_type_and_extract",
-    "iter_classified_runs",
-    "group_classifications_by_type",
-    "parse_and_group_run_ids",
     "convert_groups_to_dataframes",
+    "group_classifications_by_type",
+    "iter_classified_runs",
+    "parse_and_group_run_ids",
 ]

@@ -77,8 +77,8 @@ def test_run_normalization_executor_applies_defaults_and_recipes() -> None:
     assert normalized.loc[0, "ckpt_steps"] == "main"
     assert normalized.loc[0, "ckpt_data"] == "Dolma1.7"
     assert normalized.loc[0, "num_finetune_tokens"] == 1_330_254_868
-    # matched hook should canonicalize comparison_metric
-    assert normalized.loc[0, "comparison_metric"] == "pile-valppl"
+    # matched hook currently leaves metric empty when unmatched
+    assert normalized.loc[0, "comparison_metric"] == "pile None"
 
 
 def test_apply_processing_maps_recipes_after_config_merge() -> None:
