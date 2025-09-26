@@ -18,6 +18,12 @@ dependencies = [
     "pyarrow>=21.0.0",
     "srsly>=2.5.1",
     "typer>=0.19.2",
+    "quak>=0.3.2",
+    "marimo>=0.16.2",
+    "sqlglot>=27.18.0",
+    "sh>=2.2.2",
+    "dr-wandb",
+    "lazydocs",
 ]
 
 [build-system]
@@ -26,6 +32,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "dr-ingest",
     "pytest>=8.4.2",
 ]
 
@@ -147,3 +154,8 @@ seaborn             = "sns"
 polars              = "pl"
 lightning			= "L"
 "jax.numpy" 	    = "jnp"
+
+[tool.uv.sources]
+dr-wandb = { path = "../dr_wandb" }
+lazydocs = { path = "../lazydocs", editable = true }
+

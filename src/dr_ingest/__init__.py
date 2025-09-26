@@ -6,7 +6,7 @@ from .qa.transform import (
     model_output_keys,
     preview_agg_metrics,
 )
-from .serialization import compare_sizes, dump_runs_and_history, ensure_parquet
+from .serialization import compare_sizes
 from .wandb.summary import normalize_oe_summary
 
 __all__ = [
@@ -15,9 +15,7 @@ __all__ = [
     "TaskOutputData",
     "build_file_metadata",
     "compare_sizes",
-    "dump_runs_and_history",
     "ensure_extracted",
-    "ensure_parquet",
     "extract_question_payloads",
     "list_tarballs",
     "model_output_keys",
