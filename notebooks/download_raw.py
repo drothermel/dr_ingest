@@ -1,15 +1,15 @@
 import marimo
 
 __generated_with = "0.16.2"
-app = marimo.App(width="columns")
+app = marimo.App()
 
 
-@app.cell(column=0)
+@app.cell
 def _():
     return
 
 
-@app.cell(column=1)
+@app.cell
 def _():
     from dr_wandb import fetch_project_runs
     import marimo as mo
@@ -23,8 +23,11 @@ def _():
 
     from dr_ingest.raw_download import (
         is_nested,
+        literal_eval_udf,
         split_df_to_db_by_object_cols,
         load_parse_write_duckdb,
+        dd_results_load_fxn,
+        dd_results_parse_fxn,
         wandb_load_fxn,
         wandb_parse_fxn,
     )
@@ -36,17 +39,19 @@ def _():
     )
     dd_res_dir = f"{raw_downloads_dir}DD-eval-results/data/"
     dd_res_names = [f"train-0000{i}-of-00004.parquet" for i in range(4)]
-    dd_res_name_selector = "train-*.parquet"
+    dd_res_other = [
+        "macro_avg-00000-of-00001.parquet",
+        "scaling_law_fit-00000-of-00001.parquet",
+    ]
     return (
         ENTITY,
         PROJECT,
-        VARCHAR,
-        ast,
         dd_res_dir,
-        dd_res_name_selector,
         dd_res_names,
+        dd_res_other,
+        dd_results_load_fxn,
+        dd_results_parse_fxn,
         duckdb,
-        json,
         load_parse_write_duckdb,
         mo,
         pd,
@@ -56,54 +61,14 @@ def _():
 
 
 @app.cell
-def _(ast, duckdb, json):
-    def literal_eval_udf(x: str) -> str:
-        # Return JSON string; you could return dict, but use str for compatibility
-        if x is None:
-            return None
-        try:
-            return json.dumps(ast.literal_eval(x))
-        except Exception:
-            return None
-
-
-    def get_variable_from_duckdb(var_name: str):
-        return duckdb.sql(f"SELECT getvariable('{var_name}')").fetchone()[0]
-
-
-    def schema_variable_to_struct_def(var_name: str) -> str:
-        schema = get_variable_from_duckdb(var_name)
-        json_schema = json.loads(schema)
-        struct_def = ", ".join([f"{k} {v}" for k, v in json_schema.items()])
-        return f"STRUCT({struct_def})"
-    return literal_eval_udf, schema_variable_to_struct_def
-
-
-@app.cell(hide_code=True)
-def _(dd_res_dir, dd_res_names, mo, pd):
-    ex_df_path = f"{dd_res_dir}{dd_res_names[0]}"
-    ex_df = pd.read_parquet(ex_df_path)
-    mo.vstack(
-        [
-            mo.md(f"""
-            ### Load Results Table (part 0/4) with pandas.
-            Load from: {ex_df_path}
-            """),
-            ex_df,
-        ]
-    )
-    return
-
-
-@app.cell(hide_code=True)
 def _(dd_res_dir, dd_res_names, duckdb, mo):
-    ex_duckdb_path = f"{dd_res_dir}{dd_res_names[0]}"
-    ex_t = duckdb.read_parquet(ex_duckdb_path)
+    files = [f"{dd_res_dir}{name}" for name in dd_res_names]
+    ex_t = duckdb.read_parquet(files)
     mo.vstack(
         [
             mo.md(f"""
             ### Load Results Table with duckdb
-            Load from: {ex_duckdb_path} into variable `ex_t`
+            Load from: {files} into variable `ex_t`
 
             Then we can run: `ex_t.explain()` to get a string back describing what the `ex_t` object is.  (Note: we need `mo.plain_text(...)` to render the newlines correctly.)
             """),
@@ -124,150 +89,127 @@ def _(dd_res_dir, dd_res_names, duckdb, mo):
 
 
 @app.cell(hide_code=True)
-def _(VARCHAR, duckdb, json, literal_eval_udf, mo):
-    # Avoid duplicate definitions when rerunning by removing and re-adding
-    try:
-        duckdb.remove_function("py_literal_eval")
-        duckdb.create_function("py_literal_eval", literal_eval_udf, [VARCHAR], VARCHAR)
-    except Exception:
-        pass
-
-    duckdb.sql("""
-    SET VARIABLE json_schema = (
-        SELECT json_structure(py_literal_eval(metrics)::JSON)
-        FROM ex_t
-        LIMIT 1
-    );
-    """)
+def _(mo):
     mo.vstack(
         [
             mo.md("""
-        ## Processing metrics col
-        The metrics column contains a python literal string of a dictionary.  First we need to create a function to convert the string to a json string:
-        ```python
-        import ast
-        import json
-    
-        def literal_eval_udf(x: str) -> str:
-            # Return JSON string for compatibility
-            if x is None:
-                return None
+            ## Processing metrics col
+            The metrics column contains a python literal string of a dictionary.  First we need to create a function to convert the string to a json string:
+            ```python
+            import ast
+            import json
+
+            def literal_eval_udf(x: str) -> str:
+                # Return JSON string for compatibility
+                if x is None:
+                    return None
+                try:
+                    return json.dumps(ast.literal_eval(x))
+                except Exception:
+                    return None
+            ```
+            Then we can add this to duckdb as a new function, where the try/catch and remove is to avoid redefining the fxn if we rerun the cell:
+            ```python
+            from duckdb.types import VARCHAR
+
             try:
-                return json.dumps(ast.literal_eval(x))
+                duckdb.remove_function("py_literal_eval")
+                duckdb.create_function("py_literal_eval", literal_eval_udf, [VARCHAR], VARCHAR)
             except Exception:
-                return None
-        ```
-        Then we can add this to duckdb as a new function, where the try/catch and remove is to avoid redefining the fxn if we rerun the cell:
-        ```python
-        from duckdb.types import VARCHAR
-    
-        try:
-            duckdb.remove_function("py_literal_eval")
-            duckdb.create_function("py_literal_eval", literal_eval_udf, [VARCHAR], VARCHAR)
-        except Exception:
-            pass
-        ```
-        Next we can extract the schema from the metrics columna fter processing with this UDF:
-        ```python
-        duckdb.sql(\"""
-        SET VARIABLE json_schema = (
-            SELECT json_structure(py_literal_eval(metrics)::JSON)
-            FROM ex_t
-            LIMIT 1
-        );
-        \""")
-        ```
-        Which we can then use to see the schema:
-        ```python
-        json.loads(
-            duckdb.sql(
-                "SELECT getvariable('json_schema')"
-            ).fetchone()[0]
-        )
-        ```
-        Which produces:
-        """),
-            json.loads(duckdb.sql("SELECT getvariable('json_schema')").fetchone()[0]),
+                pass
+            ```
+            Next we can extract the schema from the metrics columna fter processing with this UDF:
+            ```python
+            duckdb.sql(\"""
+            SET VARIABLE json_schema = (
+                SELECT json_structure(py_literal_eval(metrics)::JSON)
+                FROM ex_t
+                LIMIT 1
+            );
+            \""")
+            ```
+            Which we can then use to see the schema:
+            ```python
+            json.loads(
+                duckdb.sql(
+                    "SELECT getvariable('json_schema')"
+                ).fetchone()[0]
+            )
+            ```
+            """)
         ]
     )
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    extract_button = mo.ui.run_button(label="Run Metrics Extraction (Takes ~2m)")
+    mo.md("""
+    And now we can use this schema to create a struct by selecting a new table:
+    ```python
+    duckdb.sql(f\"""
+    CREATE TABLE ex_new AS
+    SELECT
+        * EXCLUDE(metrics),
+        from_json(
+            py_literal_eval(metrics)::JSON,
+            getvariable('json_schema')
+        ) AS metrics
+    FROM ex_t
+    \""")
+    ```
+    """)
+    return (extract_button,)
+
+
 @app.cell
-def _(mo, schema_variable_to_struct_def):
-    alter_table_button = mo.ui.run_button(label="Run Alter Table")
+def _(
+    dd_res_dir,
+    dd_results_load_fxn,
+    dd_results_parse_fxn,
+    duckdb,
+    extract_button,
+    mo,
+):
+    mo.stop(not extract_button.value, extract_button)
+    final_table_name, final_table = next(
+        iter(dd_results_parse_fxn(dd_results_load_fxn(source_dir=dd_res_dir)))
+    )
     mo.vstack(
         [
-            mo.md("""
-        Finally, lets alter the table to add a metrics_struct col 
-        (better storage efficiency and easier access), 
-        then drop the old one and rename. We could also just select everything into a new table and rename it, 
-        but the alter table method will use less memory which will be relevant in the future.
-    
-        First we need to convert the schema to a struct def of form:
-        ```SQL
-        STRUCT(
-            key1 TYPE, 
-            key2 TYPE, 
-            ...
-        )
-        ```
-        Which for us produces:
-        """),
-            schema_variable_to_struct_def("json_schema"),
-            mo.md("""
-        Then we can do the alter table:
-        ```python
-        duckdb.sql(\"""
-            ALTER TABLE ex_t
-            ADD COLUMN metrics_struct STRUCT(...);
-        
-            UPDATE ex_t 
-            SET metrics_struct = from_json(
-                py_literal_eval(metrics)::JSON, 
-                getvariable('json_schema')
-            );
-        
-            ALTER TABLE ex_t DROP COLUMN metrics;
-        
-            ALTER TABLE ex_t RENAME COLUMN metrics_struct TO metrics;
-        \""")
-        ```
-        """),
+            mo.md("Original table:"),
+            duckdb.sql("DESCRIBE ex_t").df(),
+            mo.md(f"New table {final_table_name}:"),
+            duckdb.sql("DESCRIBE final_table").df(),
         ]
     )
-    return (alter_table_button,)
-
-
-@app.cell
-def _(alter_table_button, duckdb, ex_t, mo):
-    mo.vstack(
-        mo.stop(not alter_table_button.value, alter_table_button),
-        duckdb.sql("""
-        ALTER TABLE ex_t 
-        ADD COLUMN metrics_struct {}
-        """),
-        duckdb.sql("""
-        UPDATE ex_t 
-        SET metrics_struct = from_json(
-            py_literal_eval(metrics)::JSON, 
-            getvariable('json_schema')
-        )
-        """),
-        duckdb.sql("ALTER TABLE ex_t DROP COLUMN metrics"),
-        duckdb.sql("ALTER TABLE ex_t RENAME COLUMN metrics_struct TO metrics"),
-        mo.plain_text(ex_t.describe()),
-    )
     return
 
 
 @app.cell
-def _():
+def _(dd_res_dir, dd_res_other, mo, pd):
+    macro_avg_path = f"{dd_res_dir}{dd_res_other[0]}"
+    macro_avg_df = pd.read_parquet(macro_avg_path)
+    mo.vstack([
+        mo.md(f"""## Macro Average Data
+        Loading: {macro_avg_path}
+        """)
+    ])
+    macro_avg_df
     return
 
 
-@app.cell(column=2)
-def _():
+@app.cell
+def _(dd_res_dir, dd_res_other, mo, pd):
+    scaling_path = f"{dd_res_dir}{dd_res_other[1]}"
+    scaling_df = pd.read_parquet(scaling_path)
+    mo.vstack([
+        mo.md(f"""## Scaling Law Fit Data
+        Loading: {scaling_path}
+        """),
+        scaling_df,
+    ])
     return
 
 
@@ -425,7 +367,7 @@ def _(mo, qa_parsing_switch):
     return
 
 
-@app.cell(column=3)
+@app.cell
 def _():
     return
 
