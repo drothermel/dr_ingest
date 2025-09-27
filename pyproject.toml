@@ -24,6 +24,8 @@ dependencies = [
     "sh>=2.2.2",
     "dr-wandb",
     "lazydocs",
+    "ibis-framework[duckdb]>=10.8.0",
+    "graphviz>=0.21",
 ]
 
 [build-system]
