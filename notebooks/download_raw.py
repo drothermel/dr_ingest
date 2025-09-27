@@ -13,9 +13,29 @@ def _():
     import srsly
     import sh
 
+    from dr_ingest.raw import (
+        is_nested,
+        split_df_to_db_by_object_cols,
+        load_parse_write_duckdb,
+        wandb_load_fxn,
+        wandb_parse_fxn,
+    )
+
     ENTITY, PROJECT = "ml-moe", "ft-scaling"
     RUNS_NAME, HIST_NAME = "runs_t2", "hist_t2"
-    return ENTITY, PROJECT, duckdb, fetch_project_runs, mo, pd, srsly
+    return (
+        ENTITY,
+        PROJECT,
+        duckdb,
+        fetch_project_runs,
+        load_parse_write_duckdb,
+        mo,
+        pd,
+        split_df_to_db_by_object_cols,
+        srsly,
+        wandb_load_fxn,
+        wandb_parse_fxn,
+    )
 
 
 @app.cell(hide_code=True)
@@ -45,85 +65,91 @@ def _(mo):
 
 @app.cell
 def _(pd):
-    def is_nested(df, col):
-        return df[col].apply(lambda x: isinstance(x, (list, dict))).any()
+    if False:
 
+        def is_nested(df, col):
+            return df[col].apply(lambda x: isinstance(x, (list, dict))).any()
 
-    def split_df_to_db_by_object_cols(
-        df: pd.DataFrame, name_prefix: str = ""
-    ) -> tuple[str, pd.DataFrame]:
-        obj_cols, non_obj_cols = [], []
-        for col in df.columns:
-            if is_nested(df, col):
-                obj_cols.append(col)
-            else:
-                non_obj_cols.append(col)
-        for obj_col in obj_cols:
-            obj_df = pd.DataFrame(df[obj_col].tolist())
-            missing_id_cols = [col for col in non_obj_cols if col not in obj_df.columns]
-            id_df = df[missing_id_cols]
-            obj_df = pd.concat([id_df, obj_df], axis=1)
-            obj_col_name = f"{name_prefix}{obj_col}"
-            yield obj_col_name, obj_df
+        def split_df_to_db_by_object_cols(
+            df: pd.DataFrame, name_prefix: str = ""
+        ) -> tuple[str, pd.DataFrame]:
+            obj_cols, non_obj_cols = [], []
+            for col in df.columns:
+                if is_nested(df, col):
+                    obj_cols.append(col)
+                else:
+                    non_obj_cols.append(col)
+            for obj_col in obj_cols:
+                obj_df = pd.DataFrame(df[obj_col].tolist())
+                missing_id_cols = [col for col in non_obj_cols if col not in obj_df.columns]
+                id_df = df[missing_id_cols]
+                obj_df = pd.concat([id_df, obj_df], axis=1)
+                obj_col_name = f"{name_prefix}{obj_col}"
+                yield obj_col_name, obj_df
     return (split_df_to_db_by_object_cols,)
 
 
 @app.cell
 def _(duckdb):
-    def load_parse_write_duckdb(df_name, load_fxn, parse_fxn, out_dir, **kwargs):
-        con = duckdb.connect(":memory:")
-        sub_dfs_gen = parse_fxn(load_fxn(**kwargs), **kwargs)
-        sub_dfs = {}
-        for sub_name, sub_df in sub_dfs_gen:
-            name = f"{df_name}_{sub_name}"
-            sub_dfs[name] = sub_df
-            con.execute(f"CREATE TABLE {name} AS SELECT * FROM sub_df")
-            con.execute(
-                f"COPY {name} to '{out_dir}/{name}.parquet' (FORMAT parquet, PARQUET_VERSION v2)"
-            )
-            print(">> Wrote:", f"{out_dir}/{name}.parquet")
-        return sub_dfs
+    if False:
+
+        def load_parse_write_duckdb(df_name, load_fxn, parse_fxn, out_dir, **kwargs):
+            con = duckdb.connect(":memory:")
+            sub_dfs_gen = parse_fxn(load_fxn(**kwargs), **kwargs)
+            sub_dfs = {}
+            for sub_name, sub_df in sub_dfs_gen:
+                name = f"{df_name}_{sub_name}"
+                sub_dfs[name] = sub_df
+                con.execute(f"CREATE TABLE {name} AS SELECT * FROM sub_df")
+                con.execute(
+                    f"COPY {name} to '{out_dir}/{name}.parquet' (FORMAT parquet, PARQUET_VERSION v2)"
+                )
+                print(">> Wrote:", f"{out_dir}/{name}.parquet")
+            return sub_dfs
     return (load_parse_write_duckdb,)
 
 
 @app.cell
 def _(fetch_project_runs, pd, split_df_to_db_by_object_cols, srsly):
-    def wandb_load_fxn(**kwargs):
-        entity = kwargs.get("entity", None)
-        project = kwargs.get("project", None)
-        runs_per_page = kwargs.get("runs_per_page", 500)
-        log_every = kwargs.get("log_every", 10)
-        source_dir = kwargs.get("source_dir", "notebooks")
-        redownload = (
-            kwargs.get("redownload", False) and entity is not None and project is not None
-        )
-        if redownload:
-            print(">> Redownloading from wandb...")
-            return fetch_project_runs(
-                entity,
-                project,
-                runs_per_page=runs_per_page,
-                include_history=True,
-                progress_callback=lambda i, total, name: print(
-                    f">> Processing run {i}/{total}: {name}"
-                )
-                if i % log_every == 0
-                else None,
+    if False:
+
+        def wandb_load_fxn(**kwargs):
+            entity = kwargs.get("entity", None)
+            project = kwargs.get("project", None)
+            runs_per_page = kwargs.get("runs_per_page", 500)
+            log_every = kwargs.get("log_every", 10)
+            source_dir = kwargs.get("source_dir", "notebooks")
+            redownload = (
+                kwargs.get("redownload", False)
+                and entity is not None
+                and project is not None
             )
-        print(">> Loading locally...")
-        runs = list(srsly.read_jsonl(f"{source_dir}/wandb_runs.jsonl"))
-        history = list(srsly.read_jsonl(f"{source_dir}/wandb_history.jsonl"))
-        return runs, history
+            if redownload:
+                print(">> Redownloading from wandb...")
+                return fetch_project_runs(
+                    entity,
+                    project,
+                    runs_per_page=runs_per_page,
+                    include_history=True,
+                    progress_callback=lambda i, total, name: print(
+                        f">> Processing run {i}/{total}: {name}"
+                    )
+                    if i % log_every == 0
+                    else None,
+                )
+            print(">> Loading locally...")
+            runs = list(srsly.read_jsonl(f"{source_dir}/wandb_runs.jsonl"))
+            history = list(srsly.read_jsonl(f"{source_dir}/wandb_history.jsonl"))
+            return runs, history
 
-
-    def wandb_parse_fxn(runs_history, **kwargs):
-        runs, history = runs_history
-        runs_df = pd.DataFrame(runs)
-        history_df = pd.DataFrame(history)
-        print(">> Parsing runs...")
-        yield from split_df_to_db_by_object_cols(runs_df, name_prefix="runs_")
-        print(">> Parsing history...")
-        yield "history", history_df
+        def wandb_parse_fxn(runs_history, **kwargs):
+            runs, history = runs_history
+            runs_df = pd.DataFrame(runs)
+            history_df = pd.DataFrame(history)
+            print(">> Parsing runs...")
+            yield from split_df_to_db_by_object_cols(runs_df, name_prefix="runs_")
+            print(">> Parsing history...")
+            yield "history", history_df
     return wandb_load_fxn, wandb_parse_fxn
 
 
