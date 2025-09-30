@@ -1,15 +1,41 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
 import duckdb
 import pandas as pd
+import polars as pl
 import srsly
 
 logger = logging.getLogger(__name__)
+
+type PolarsFunction = Callable[[pl.DataFrame], pl.DataFrame]
+
+
+def ipc_serialize(df: pl.DataFrame) -> bytes:
+    buffer = io.BytesIO()
+    df.write_ipc(buffer)
+    return buffer.getvalue()
+
+
+def ipc_deserialize(df_bytes: bytes) -> pl.DataFrame:
+    return pl.read_ipc(io.BytesIO(df_bytes))
+
+
+def ipc_serialize_all(df_list: list[pl.DataFrame]) -> list[bytes]:
+    return [ipc_serialize(df) for df in df_list]
+
+
+def ipc_deserialize_all(df_bytes_list: list[bytes]) -> pl.DataFrame:
+    return pl.concat([ipc_deserialize(b) for b in df_bytes_list], how="vertical")
+
+
+def ipc_apply(df_bytes: bytes, fxn: PolarsFunction) -> bytes:
+    return ipc_serialize(fxn(ipc_deserialize(df_bytes)))
 
 
 def dump_jsonl(path: Path, rows: Iterable[Mapping]) -> None:

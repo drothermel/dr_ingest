@@ -20,6 +20,7 @@ def _():
     import sh
     import json
     import ast
+    import polars as pl
 
     from dr_ingest.raw_download import (
         is_nested,
@@ -46,50 +47,68 @@ def _():
     return (
         ENTITY,
         PROJECT,
+        ast,
         dd_res_dir,
         dd_res_names,
         dd_res_other,
         dd_results_load_fxn,
         dd_results_parse_fxn,
         duckdb,
+        json,
         load_parse_write_duckdb,
         mo,
         pd,
+        pl,
         wandb_load_fxn,
         wandb_parse_fxn,
     )
 
 
 @app.cell
-def _(dd_res_dir, dd_res_names, duckdb, mo):
+def _(ast, dd_res_dir, dd_res_names, json, pl):
     files = [f"{dd_res_dir}{name}" for name in dd_res_names]
-    ex_t = duckdb.read_parquet(files)
-    mo.vstack(
-        [
-            mo.md(f"""
-            ### Load Results Table with duckdb
-            Load from: {files} into variable `ex_t`
-
-            Then we can run: `ex_t.explain()` to get a string back describing what the `ex_t` object is.  (Note: we need `mo.plain_text(...)` to render the newlines correctly.)
-            """),
-            mo.plain_text(ex_t.explain()),
-            mo.md(
-                "And then `ex_t.describe()` where .describe() returns a table which will only be properly formatted as a string if we use `mo.plain_text(str(...))`"
-            ),
-            mo.plain_text(str(ex_t.describe())),
-            mo.md(
-                "... but we could also just convert it to a df with `ex_t.describe().df()`"
-            ),
-            ex_t.describe().df(),
-            mo.md("And finally, we can see the table itself:"),
-            duckdb.sql("SELECT * FROM ex_t LIMIT 5").df(),
-        ]
+    df = (
+        pl.scan_parquet(files)
+        .with_columns(
+            pl.col("metrics")
+            .map_elements(lambda x: json.dumps(ast.literal_eval(x)), return_dtype=pl.String)
+            .alias("metrics")
+        )
+        .collect()
     )
-    return (ex_t,)
+    return (df,)
+
+
+@app.cell
+def _(df, json):
+    all_keys = set()
+    for d in df["metrics"]:
+        all_keys.update(json.loads(d).keys())
+    print(len(all_keys), all_keys)
+    return (all_keys,)
+
+
+@app.cell
+def _(all_keys, df, pl):
+    df2 = df.with_columns(
+        pl.struct([pl.col("metrics" + f".{key}") for key in all_keys]).alias(
+            "metrics_struct"
+        )
+    )
+    return
+
+
+@app.cell
+def _(df, duckdb):
+    duckdb.sql(
+        "COPY (SELECT * FROM df) TO 'notebooks/qa_results_t2.parquet' (FORMAT PARQUET)"
+    ).execute()
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.stop(False)
     mo.vstack(
         [
             mo.md("""
@@ -191,11 +210,13 @@ def _(
 def _(dd_res_dir, dd_res_other, mo, pd):
     macro_avg_path = f"{dd_res_dir}{dd_res_other[0]}"
     macro_avg_df = pd.read_parquet(macro_avg_path)
-    mo.vstack([
-        mo.md(f"""## Macro Average Data
+    mo.vstack(
+        [
+            mo.md(f"""## Macro Average Data
         Loading: {macro_avg_path}
         """)
-    ])
+        ]
+    )
     macro_avg_df
     return
 
@@ -204,12 +225,14 @@ def _(dd_res_dir, dd_res_other, mo, pd):
 def _(dd_res_dir, dd_res_other, mo, pd):
     scaling_path = f"{dd_res_dir}{dd_res_other[1]}"
     scaling_df = pd.read_parquet(scaling_path)
-    mo.vstack([
-        mo.md(f"""## Scaling Law Fit Data
+    mo.vstack(
+        [
+            mo.md(f"""## Scaling Law Fit Data
         Loading: {scaling_path}
         """),
-        scaling_df,
-    ])
+            scaling_df,
+        ]
+    )
     return
 
 

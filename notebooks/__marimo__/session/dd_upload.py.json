@@ -1,0 +1,157 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.16.2"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "4eced1c6636739ecfe9352ce7feeab90",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>True</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "542879b300b6fd5b21c405e39b1ea55b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "0dc86c32127612c13e7b2d51b53a9441",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "application/json": "[\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRhbmllbGxlLnJvdGhlcm1lbEBnbWFpbC5jb20iLCJzZXNzaW9uIjoiZGFuaWVsbGUucm90aGVybWVsLmdtYWlsLmNvbSIsInBhdCI6Ikx3cTBIX1lXU0JXUDlTR0NNV2pqZS0wZFlKQmdDQ0twbDdEaUpVYXV0V3MiLCJ1c2VySWQiOiJlZDRhYzIyZi1lNmQwLTQ1N2QtYmM0Yy05YmVkYzZhYTZiM2MiLCJpc3MiOiJtZF9wYXQiLCJyZWFkT25seSI6ZmFsc2UsInRva2VuVHlwZSI6InJlYWRfd3JpdGUiLCJpYXQiOjE3NTkyMTg3MjJ9.DoIE1TI0VVNjU3hz2xJ85VaglOxHQ-G5WeZz6-WSHvs\", \"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\"]"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "54188b4b8402f4737cfe904f88ba1481",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "24beac5c13a694772cee7e422cfba77f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>&lt;duckdb.duckdb.DuckDBPyConnection object at 0x14ad07cf0&gt;</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "275b40a0449901faca71751a39c3cbb6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>&lt;duckdb.duckdb.DuckDBPyConnection object at 0x14ad07cf0&gt;</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "357acfb3d643a1a3eb72c47475faf484",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>&lt;duckdb.duckdb.DuckDBPyConnection object at 0x14ad07cf0&gt;</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "GJQv",
+      "code_hash": "8329b156505f1ba5dbe5b273be6af309",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='GJQv-0' random-id='30829040-db10-ad54-739d-777800a6ac2c'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;name&#92;&quot;:&#92;&quot;scaling_law_pred_one_step_raw&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;scaling_law_pred_two_step_raw&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;scaling_law_true_raw&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;train_results&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_history&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_runs_config&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_runs_summary&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_runs_sweep_info&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_runs_system_attrs&#92;&quot;},{&#92;&quot;name&#92;&quot;:&#92;&quot;wandb_runs_system_metrics&#92;&quot;}]&quot;' data-total-rows='11' data-total-columns='1' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;name&quot;,[&quot;string&quot;,&quot;object&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "QvsA",
+      "code_hash": "05c526443ed9cdd17733a2abdb35d1ee",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='QvsA-0' random-id='35034bd5-b537-416e-4dcf-4ff02181efaa'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;id&#92;&quot;:0,&#92;&quot;task&#92;&quot;:&#92;&quot;arc_challenge&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;arc_challenge&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7775741816,&#92;&quot;per_char&#92;&quot;:0.7775741816,&#92;&quot;per_token&#92;&quot;:0.7775741816},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7775741816,&#92;&quot;per_char&#92;&quot;:0.7775741816,&#92;&quot;per_token&#92;&quot;:0.7775741816},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7775741816,&#92;&quot;per_char&#92;&quot;:0.7775741816,&#92;&quot;per_token&#92;&quot;:0.7775741816},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7775741816,&#92;&quot;per_char&#92;&quot;:0.7775741816,&#92;&quot;per_token&#92;&quot;:0.7775741816},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7775741816,&#92;&quot;per_char&#92;&quot;:0.7775741816,&#92;&quot;per_token&#92;&quot;:0.7775741816}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:-0.0029736981,&#92;&quot;per_char&#92;&quot;:-0.0355509333,&#92;&quot;per_token&#92;&quot;:-0.0243797321},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3407865167,&#92;&quot;per_char&#92;&quot;:0.2650458515,&#92;&quot;per_token&#92;&quot;:0.3129828572},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0356184766,&#92;&quot;per_char&#92;&quot;:2.3067400455,&#92;&quot;per_token&#92;&quot;:0.4035549462},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3498293459,&#92;&quot;per_char&#92;&quot;:0.3694539368,&#92;&quot;per_token&#92;&quot;:0.3703071773},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0137366978,&#92;&quot;per_char&#92;&quot;:0.6104115248,&#92;&quot;per_token&#92;&quot;:0.123755388}}},{&#92;&quot;id&#92;&quot;:1,&#92;&quot;task&#92;&quot;:&#92;&quot;arc_easy&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;arc_easy&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5667592287,&#92;&quot;per_char&#92;&quot;:0.5667592287,&#92;&quot;per_token&#92;&quot;:0.5667592287},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5667592287,&#92;&quot;per_char&#92;&quot;:0.5667592287,&#92;&quot;per_token&#92;&quot;:0.5667592287},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5667592287,&#92;&quot;per_char&#92;&quot;:0.5667592287,&#92;&quot;per_token&#92;&quot;:0.5667592287},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5667592287,&#92;&quot;per_char&#92;&quot;:0.5667592287,&#92;&quot;per_token&#92;&quot;:0.5667592287},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5667592287,&#92;&quot;per_char&#92;&quot;:0.5667592287,&#92;&quot;per_token&#92;&quot;:0.5667592287}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0504970253,&#92;&quot;per_char&#92;&quot;:0.0777186081,&#92;&quot;per_token&#92;&quot;:0.089248091},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.6520375609,&#92;&quot;per_char&#92;&quot;:0.3080804646,&#92;&quot;per_token&#92;&quot;:0.500857532},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0839019716,&#92;&quot;per_char&#92;&quot;:2.2834844589,&#92;&quot;per_token&#92;&quot;:0.4022995234},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7074915767,&#92;&quot;per_char&#92;&quot;:0.7066498399,&#92;&quot;per_token&#92;&quot;:0.7032828331},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0652780086,&#92;&quot;per_char&#92;&quot;:0.6934468746,&#92;&quot;per_token&#92;&quot;:0.2008464336}}},{&#92;&quot;id&#92;&quot;:2,&#92;&quot;task&#92;&quot;:&#92;&quot;boolq&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;boolq&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3062301576,&#92;&quot;per_char&#92;&quot;:0.3062301576,&#92;&quot;per_token&#92;&quot;:0.3062301576},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3062301576,&#92;&quot;per_char&#92;&quot;:0.3062301576,&#92;&quot;per_token&#92;&quot;:0.3062301576},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3062301576,&#92;&quot;per_char&#92;&quot;:0.3062301576,&#92;&quot;per_token&#92;&quot;:0.3062301576},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3062301576,&#92;&quot;per_char&#92;&quot;:0.3062301576,&#92;&quot;per_token&#92;&quot;:0.3062301576},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3062301576,&#92;&quot;per_char&#92;&quot;:0.3062301576,&#92;&quot;per_token&#92;&quot;:0.3062301576}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.1022526324,&#92;&quot;per_char&#92;&quot;:0.067288354,&#92;&quot;per_token&#92;&quot;:0.1022526324},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.555745542,&#92;&quot;per_char&#92;&quot;:0.5219570398,&#92;&quot;per_token&#92;&quot;:0.555745542},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9060901403,&#92;&quot;per_char&#92;&quot;:1.5594414473,&#92;&quot;per_token&#92;&quot;:0.9060901403},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.6486238241,&#92;&quot;per_char&#92;&quot;:0.6394495368,&#92;&quot;per_token&#92;&quot;:0.6486238241},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5041713715,&#92;&quot;per_char&#92;&quot;:0.8133648634,&#92;&quot;per_token&#92;&quot;:0.5041713715}}},{&#92;&quot;id&#92;&quot;:3,&#92;&quot;task&#92;&quot;:&#92;&quot;csqa&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;csqa&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.8962923884,&#92;&quot;per_char&#92;&quot;:0.8962923884,&#92;&quot;per_token&#92;&quot;:0.8962923884},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.8962923884,&#92;&quot;per_char&#92;&quot;:0.8962923884,&#92;&quot;per_token&#92;&quot;:0.8962923884},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.8962923884,&#92;&quot;per_char&#92;&quot;:0.8962923884,&#92;&quot;per_token&#92;&quot;:0.8962923884},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.8962923884,&#92;&quot;per_char&#92;&quot;:0.8962923884,&#92;&quot;per_token&#92;&quot;:0.8962923884},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.8962923884,&#92;&quot;per_char&#92;&quot;:0.8962923884,&#92;&quot;per_token&#92;&quot;:0.8962923884}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0380587094,&#92;&quot;per_char&#92;&quot;:0.0797303021,&#92;&quot;per_token&#92;&quot;:0.0562007576},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5817000866,&#92;&quot;per_char&#92;&quot;:0.3009653091,&#92;&quot;per_token&#92;&quot;:0.5466896892},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0628467426,&#92;&quot;per_char&#92;&quot;:1.9306857586,&#92;&quot;per_token&#92;&quot;:0.14277035},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.616707623,&#92;&quot;per_char&#92;&quot;:0.6470106244,&#92;&quot;per_token&#92;&quot;:0.6183456182},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0495930351,&#92;&quot;per_char&#92;&quot;:0.5748898983,&#92;&quot;per_token&#92;&quot;:0.0934235156}}},{&#92;&quot;id&#92;&quot;:4,&#92;&quot;task&#92;&quot;:&#92;&quot;hellaswag&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;hellaswag&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7448356152,&#92;&quot;per_char&#92;&quot;:0.7448356152,&#92;&quot;per_token&#92;&quot;:0.7448356152},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7448356152,&#92;&quot;per_char&#92;&quot;:0.7448356152,&#92;&quot;per_token&#92;&quot;:0.7448356152},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7448356152,&#92;&quot;per_char&#92;&quot;:0.7448356152,&#92;&quot;per_token&#92;&quot;:0.7448356152},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7448356152,&#92;&quot;per_char&#92;&quot;:0.7448356152,&#92;&quot;per_token&#92;&quot;:0.7448356152},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7448356152,&#92;&quot;per_char&#92;&quot;:0.7448356152,&#92;&quot;per_token&#92;&quot;:0.7448356152}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:5.1299e-06,&#92;&quot;per_char&#92;&quot;:0.0239226669,&#92;&quot;per_token&#92;&quot;:0.0188832842},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.4641602933,&#92;&quot;per_char&#92;&quot;:0.2779023945,&#92;&quot;per_token&#92;&quot;:0.373008579},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.5605e-05,&#92;&quot;per_char&#92;&quot;:2.1686997414,&#92;&quot;per_token&#92;&quot;:0.2977133691},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.4646484852,&#92;&quot;per_char&#92;&quot;:0.6315475106,&#92;&quot;per_token&#92;&quot;:0.6254730225},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.02981e-05,&#92;&quot;per_char&#92;&quot;:0.6013753414,&#92;&quot;per_token&#92;&quot;:0.1103057489}}},{&#92;&quot;id&#92;&quot;:5,&#92;&quot;task&#92;&quot;:&#92;&quot;openbookqa&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;openbookqa&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.2416543961,&#92;&quot;per_char&#92;&quot;:1.2416543961,&#92;&quot;per_token&#92;&quot;:1.2416543961},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.2416543961,&#92;&quot;per_char&#92;&quot;:1.2416543961,&#92;&quot;per_token&#92;&quot;:1.2416543961},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.2416543961,&#92;&quot;per_char&#92;&quot;:1.2416543961,&#92;&quot;per_token&#92;&quot;:1.2416543961},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.2416543961,&#92;&quot;per_char&#92;&quot;:1.2416543961,&#92;&quot;per_token&#92;&quot;:1.2416543961},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.2416543961,&#92;&quot;per_char&#92;&quot;:1.2416543961,&#92;&quot;per_token&#92;&quot;:1.2416543961}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:-0.0001256665,&#92;&quot;per_char&#92;&quot;:-0.0412084348,&#92;&quot;per_token&#92;&quot;:-0.0124088386},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.2735731602,&#92;&quot;per_char&#92;&quot;:0.2742065489,&#92;&quot;per_token&#92;&quot;:0.3490238488},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0170198735,&#92;&quot;per_char&#92;&quot;:1.6723020077,&#92;&quot;per_token&#92;&quot;:0.1147731766},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.2820000052,&#92;&quot;per_char&#92;&quot;:0.3860000074,&#92;&quot;per_token&#92;&quot;:0.40200001},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0073989904,&#92;&quot;per_char&#92;&quot;:0.4530674815,&#92;&quot;per_token&#92;&quot;:0.0363645516}}},{&#92;&quot;id&#92;&quot;:6,&#92;&quot;task&#92;&quot;:&#92;&quot;piqa&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;piqa&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9766301513,&#92;&quot;per_char&#92;&quot;:0.9766301513,&#92;&quot;per_token&#92;&quot;:0.9766301513},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9766301513,&#92;&quot;per_char&#92;&quot;:0.9766301513,&#92;&quot;per_token&#92;&quot;:0.9766301513},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9766301513,&#92;&quot;per_char&#92;&quot;:0.9766301513,&#92;&quot;per_token&#92;&quot;:0.9766301513},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9766301513,&#92;&quot;per_char&#92;&quot;:0.9766301513,&#92;&quot;per_token&#92;&quot;:0.9766301513},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9766301513,&#92;&quot;per_char&#92;&quot;:0.9766301513,&#92;&quot;per_token&#92;&quot;:0.9766301513}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:5.8132e-05,&#92;&quot;per_char&#92;&quot;:0.031018069,&#92;&quot;per_token&#92;&quot;:0.0196429137},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7349753976,&#92;&quot;per_char&#92;&quot;:0.5153138638,&#92;&quot;per_token&#92;&quot;:0.5613604784},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0001011244,&#92;&quot;per_char&#92;&quot;:1.0395632982,&#92;&quot;per_token&#92;&quot;:0.1647520661},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.7464635372,&#92;&quot;per_char&#92;&quot;:0.7519042492,&#92;&quot;per_token&#92;&quot;:0.7529923916},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:7.96282e-05,&#92;&quot;per_char&#92;&quot;:0.5352907181,&#92;&quot;per_token&#92;&quot;:0.0921974927}}},{&#92;&quot;id&#92;&quot;:7,&#92;&quot;task&#92;&quot;:&#92;&quot;socialiqa&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;socialiqa&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.0034877062,&#92;&quot;per_char&#92;&quot;:1.0034877062,&#92;&quot;per_token&#92;&quot;:1.0034877062},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.0034877062,&#92;&quot;per_char&#92;&quot;:1.0034877062,&#92;&quot;per_token&#92;&quot;:1.0034877062},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.0034877062,&#92;&quot;per_char&#92;&quot;:1.0034877062,&#92;&quot;per_token&#92;&quot;:1.0034877062},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.0034877062,&#92;&quot;per_char&#92;&quot;:1.0034877062,&#92;&quot;per_token&#92;&quot;:1.0034877062},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.0034877062,&#92;&quot;per_char&#92;&quot;:1.0034877062,&#92;&quot;per_token&#92;&quot;:1.0034877062}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0018342645,&#92;&quot;per_char&#92;&quot;:0.0080795037,&#92;&quot;per_token&#92;&quot;:0.0072256066},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.4691957235,&#92;&quot;per_char&#92;&quot;:0.3711250126,&#92;&quot;per_token&#92;&quot;:0.455709368},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0086751981,&#92;&quot;per_char&#92;&quot;:1.4079523087,&#92;&quot;per_token&#92;&quot;:0.1241229475},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.476970315,&#92;&quot;per_char&#92;&quot;:0.5214943886,&#92;&quot;per_token&#92;&quot;:0.5066530108},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.005118099,&#92;&quot;per_char&#92;&quot;:0.5195935369,&#92;&quot;per_token&#92;&quot;:0.058007881}}},{&#92;&quot;id&#92;&quot;:8,&#92;&quot;task&#92;&quot;:&#92;&quot;winogrande&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;winogrande&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.1271134615,&#92;&quot;per_char&#92;&quot;:1.1271134615,&#92;&quot;per_token&#92;&quot;:1.1271134615},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.1271134615,&#92;&quot;per_char&#92;&quot;:1.1271134615,&#92;&quot;per_token&#92;&quot;:1.1271134615},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.1271134615,&#92;&quot;per_char&#92;&quot;:1.1271134615,&#92;&quot;per_token&#92;&quot;:1.1271134615},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.1271134615,&#92;&quot;per_char&#92;&quot;:1.1271134615,&#92;&quot;per_token&#92;&quot;:1.1271134615},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:1.1271134615,&#92;&quot;per_char&#92;&quot;:1.1271134615,&#92;&quot;per_token&#92;&quot;:1.1271134615}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0003649361,&#92;&quot;per_char&#92;&quot;:0.0134664448,&#92;&quot;per_token&#92;&quot;:0.0089314496},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.5776809454,&#92;&quot;per_char&#92;&quot;:0.5070613027,&#92;&quot;per_token&#92;&quot;:0.5252565145},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0038148565,&#92;&quot;per_char&#92;&quot;:0.999815166,&#92;&quot;per_token&#92;&quot;:0.1556628048},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.6211523414,&#92;&quot;per_char&#92;&quot;:0.6211523414,&#92;&quot;per_token&#92;&quot;:0.6211523414},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0020898962,&#92;&quot;per_char&#92;&quot;:0.5066407919,&#92;&quot;per_token&#92;&quot;:0.082297124}}},{&#92;&quot;id&#92;&quot;:9,&#92;&quot;task&#92;&quot;:&#92;&quot;mmlu&#92;&quot;,&#92;&quot;recipe&#92;&quot;:&#92;&quot;mmlu&#92;&quot;,&#92;&quot;task_losses&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9462902546,&#92;&quot;per_char&#92;&quot;:0.9462902546,&#92;&quot;per_token&#92;&quot;:0.9462902546},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9462902546,&#92;&quot;per_char&#92;&quot;:0.9462902546,&#92;&quot;per_token&#92;&quot;:0.9462902546},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9462902546,&#92;&quot;per_char&#92;&quot;:0.9462902546,&#92;&quot;per_token&#92;&quot;:0.9462902546},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9462902546,&#92;&quot;per_char&#92;&quot;:0.9462902546,&#92;&quot;per_token&#92;&quot;:0.9462902546},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.9462902546,&#92;&quot;per_char&#92;&quot;:0.9462902546,&#92;&quot;per_token&#92;&quot;:0.9462902546}},&#92;&quot;task_metrics&#92;&quot;:{&#92;&quot;margin&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0001798408,&#92;&quot;per_char&#92;&quot;:-0.0392015837,&#92;&quot;per_token&#92;&quot;:-0.0213894602},&#92;&quot;norm_correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3186388314,&#92;&quot;per_char&#92;&quot;:0.2625387609,&#92;&quot;per_token&#92;&quot;:0.3038890362},&#92;&quot;total_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0582956187,&#92;&quot;per_char&#92;&quot;:2.1657533646,&#92;&quot;per_token&#92;&quot;:0.4740116298},&#92;&quot;accuracy&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.3285148442,&#92;&quot;per_char&#92;&quot;:0.3525484204,&#92;&quot;per_token&#92;&quot;:0.3530986607},&#92;&quot;correct_prob&#92;&quot;:{&#92;&quot;raw&#92;&quot;:0.0226463843,&#92;&quot;per_char&#92;&quot;:0.5685717463,&#92;&quot;per_token&#92;&quot;:0.1429176629}}}]&quot;' data-total-rows='275' data-total-columns='5' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;id&quot;,[&quot;integer&quot;,&quot;int32&quot;]],[&quot;task&quot;,[&quot;string&quot;,&quot;string&quot;]],[&quot;recipe&quot;,[&quot;string&quot;,&quot;string&quot;]],[&quot;task_losses&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;task_metrics&quot;,[&quot;string&quot;,&quot;object&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ANVz",
+      "code_hash": "8bd00316d176b4bc0fa1e013ddd7fa4c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<pre style='font-size: 12px'>&lt;duckdb.duckdb.DuckDBPyConnection object at 0x1208d5130&gt;</pre>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "XyLo",
+      "code_hash": "0d20a618d51a40c8ce87d17c9b526c3f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "cszk",
+      "code_hash": null,
+      "outputs": [],
+      "console": []
+    }
+  ]
+}
