@@ -1,7 +1,12 @@
 import marimo
 
 __generated_with = "0.16.2"
-app = marimo.App(width="full")
+app = marimo.App()
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell
@@ -10,12 +15,225 @@ def _():
     import marimo as mo
     import pandas as pd
     import duckdb
+    from duckdb.typing import VARCHAR
     import srsly
     import sh
+    import json
+    import ast
+    import polars as pl
+
+    from dr_ingest.raw_download import (
+        is_nested,
+        literal_eval_udf,
+        split_df_to_db_by_object_cols,
+        load_parse_write_duckdb,
+        dd_results_load_fxn,
+        dd_results_parse_fxn,
+        wandb_load_fxn,
+        wandb_parse_fxn,
+    )
 
     ENTITY, PROJECT = "ml-moe", "ft-scaling"
     RUNS_NAME, HIST_NAME = "runs_t2", "hist_t2"
-    return ENTITY, PROJECT, duckdb, fetch_project_runs, mo, pd, srsly
+    raw_downloads_dir = (
+        "/Users/daniellerothermel/drotherm/repos/datadec/data/raw_downloads/"
+    )
+    dd_res_dir = f"{raw_downloads_dir}DD-eval-results/data/"
+    dd_res_names = [f"train-0000{i}-of-00004.parquet" for i in range(4)]
+    dd_res_other = [
+        "macro_avg-00000-of-00001.parquet",
+        "scaling_law_fit-00000-of-00001.parquet",
+    ]
+    return (
+        ENTITY,
+        PROJECT,
+        ast,
+        dd_res_dir,
+        dd_res_names,
+        dd_res_other,
+        dd_results_load_fxn,
+        dd_results_parse_fxn,
+        duckdb,
+        json,
+        load_parse_write_duckdb,
+        mo,
+        pd,
+        pl,
+        wandb_load_fxn,
+        wandb_parse_fxn,
+    )
+
+
+@app.cell
+def _(ast, dd_res_dir, dd_res_names, json, pl):
+    files = [f"{dd_res_dir}{name}" for name in dd_res_names]
+    df = (
+        pl.scan_parquet(files)
+        .with_columns(
+            pl.col("metrics")
+            .map_elements(lambda x: json.dumps(ast.literal_eval(x)), return_dtype=pl.String)
+            .alias("metrics")
+        )
+        .collect()
+    )
+    return (df,)
+
+
+@app.cell
+def _(df, json):
+    all_keys = set()
+    for d in df["metrics"]:
+        all_keys.update(json.loads(d).keys())
+    print(len(all_keys), all_keys)
+    return (all_keys,)
+
+
+@app.cell
+def _(all_keys, df, pl):
+    df2 = df.with_columns(
+        pl.struct([pl.col("metrics" + f".{key}") for key in all_keys]).alias(
+            "metrics_struct"
+        )
+    )
+    return
+
+
+@app.cell
+def _(df, duckdb):
+    duckdb.sql(
+        "COPY (SELECT * FROM df) TO 'notebooks/qa_results_t2.parquet' (FORMAT PARQUET)"
+    ).execute()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.stop(False)
+    mo.vstack(
+        [
+            mo.md("""
+            ## Processing metrics col
+            The metrics column contains a python literal string of a dictionary.  First we need to create a function to convert the string to a json string:
+            ```python
+            import ast
+            import json
+
+            def literal_eval_udf(x: str) -> str:
+                # Return JSON string for compatibility
+                if x is None:
+                    return None
+                try:
+                    return json.dumps(ast.literal_eval(x))
+                except Exception:
+                    return None
+            ```
+            Then we can add this to duckdb as a new function, where the try/catch and remove is to avoid redefining the fxn if we rerun the cell:
+            ```python
+            from duckdb.types import VARCHAR
+
+            try:
+                duckdb.remove_function("py_literal_eval")
+                duckdb.create_function("py_literal_eval", literal_eval_udf, [VARCHAR], VARCHAR)
+            except Exception:
+                pass
+            ```
+            Next we can extract the schema from the metrics columna fter processing with this UDF:
+            ```python
+            duckdb.sql(\"""
+            SET VARIABLE json_schema = (
+                SELECT json_structure(py_literal_eval(metrics)::JSON)
+                FROM ex_t
+                LIMIT 1
+            );
+            \""")
+            ```
+            Which we can then use to see the schema:
+            ```python
+            json.loads(
+                duckdb.sql(
+                    "SELECT getvariable('json_schema')"
+                ).fetchone()[0]
+            )
+            ```
+            """)
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    extract_button = mo.ui.run_button(label="Run Metrics Extraction (Takes ~2m)")
+    mo.md("""
+    And now we can use this schema to create a struct by selecting a new table:
+    ```python
+    duckdb.sql(f\"""
+    CREATE TABLE ex_new AS
+    SELECT
+        * EXCLUDE(metrics),
+        from_json(
+            py_literal_eval(metrics)::JSON,
+            getvariable('json_schema')
+        ) AS metrics
+    FROM ex_t
+    \""")
+    ```
+    """)
+    return (extract_button,)
+
+
+@app.cell
+def _(
+    dd_res_dir,
+    dd_results_load_fxn,
+    dd_results_parse_fxn,
+    duckdb,
+    extract_button,
+    mo,
+):
+    mo.stop(not extract_button.value, extract_button)
+    final_table_name, final_table = next(
+        iter(dd_results_parse_fxn(dd_results_load_fxn(source_dir=dd_res_dir)))
+    )
+    mo.vstack(
+        [
+            mo.md("Original table:"),
+            duckdb.sql("DESCRIBE ex_t").df(),
+            mo.md(f"New table {final_table_name}:"),
+            duckdb.sql("DESCRIBE final_table").df(),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(dd_res_dir, dd_res_other, mo, pd):
+    macro_avg_path = f"{dd_res_dir}{dd_res_other[0]}"
+    macro_avg_df = pd.read_parquet(macro_avg_path)
+    mo.vstack(
+        [
+            mo.md(f"""## Macro Average Data
+        Loading: {macro_avg_path}
+        """)
+        ]
+    )
+    macro_avg_df
+    return
+
+
+@app.cell
+def _(dd_res_dir, dd_res_other, mo, pd):
+    scaling_path = f"{dd_res_dir}{dd_res_other[1]}"
+    scaling_df = pd.read_parquet(scaling_path)
+    mo.vstack(
+        [
+            mo.md(f"""## Scaling Law Fit Data
+        Loading: {scaling_path}
+        """),
+            scaling_df,
+        ]
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -43,101 +261,7 @@ def _(mo):
     return parsing_switch, switch
 
 
-@app.cell
-def _(pd):
-    def is_nested(df, col):
-        return df[col].apply(lambda x: isinstance(x, (list, dict))).any()
-
-
-    def split_df_to_db_by_object_cols(
-        df: pd.DataFrame, name_prefix: str = ""
-    ) -> tuple[str, pd.DataFrame]:
-        obj_cols, non_obj_cols = [], []
-        for col in df.columns:
-            if is_nested(df, col):
-                obj_cols.append(col)
-            else:
-                non_obj_cols.append(col)
-        for obj_col in obj_cols:
-            obj_df = pd.DataFrame(df[obj_col].tolist())
-            missing_id_cols = [col for col in non_obj_cols if col not in obj_df.columns]
-            id_df = df[missing_id_cols]
-            obj_df = pd.concat([id_df, obj_df], axis=1)
-            obj_col_name = f"{name_prefix}{obj_col}"
-            yield obj_col_name, obj_df
-    return (split_df_to_db_by_object_cols,)
-
-
-@app.cell
-def _(duckdb):
-    def load_parse_write_duckdb(df_name, load_fxn, parse_fxn, out_dir, **kwargs):
-        con = duckdb.connect(":memory:")
-        sub_dfs_gen = parse_fxn(load_fxn(**kwargs), **kwargs)
-        sub_dfs = {}
-        for sub_name, sub_df in sub_dfs_gen:
-            name = f"{df_name}_{sub_name}"
-            sub_dfs[name] = sub_df
-            con.execute(f"CREATE TABLE {name} AS SELECT * FROM sub_df")
-            con.execute(
-                f"COPY {name} to '{out_dir}/{name}.parquet' (FORMAT parquet, PARQUET_VERSION v2)"
-            )
-            print(">> Wrote:", f"{out_dir}/{name}.parquet")
-        return sub_dfs
-    return (load_parse_write_duckdb,)
-
-
-@app.cell
-def _(fetch_project_runs, pd, split_df_to_db_by_object_cols, srsly):
-    def wandb_load_fxn(**kwargs):
-        entity = kwargs.get("entity", None)
-        project = kwargs.get("project", None)
-        runs_per_page = kwargs.get("runs_per_page", 500)
-        log_every = kwargs.get("log_every", 10)
-        source_dir = kwargs.get("source_dir", "notebooks")
-        redownload = (
-            kwargs.get("redownload", False) and entity is not None and project is not None
-        )
-        if redownload:
-            print(">> Redownloading from wandb...")
-            return fetch_project_runs(
-                entity,
-                project,
-                runs_per_page=runs_per_page,
-                include_history=True,
-                progress_callback=lambda i, total, name: print(
-                    f">> Processing run {i}/{total}: {name}"
-                )
-                if i % log_every == 0
-                else None,
-            )
-        print(">> Loading locally...")
-        runs = list(srsly.read_jsonl(f"{source_dir}/wandb_runs.jsonl"))
-        history = list(srsly.read_jsonl(f"{source_dir}/wandb_history.jsonl"))
-        return runs, history
-
-
-    def wandb_parse_fxn(runs_history, **kwargs):
-        runs, history = runs_history
-        runs_df = pd.DataFrame(runs)
-        history_df = pd.DataFrame(history)
-        print(">> Parsing runs...")
-        yield from split_df_to_db_by_object_cols(runs_df, name_prefix="runs_")
-        print(">> Parsing history...")
-        yield "history", history_df
-    return wandb_load_fxn, wandb_parse_fxn
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(
     ENTITY,
     PROJECT,
@@ -160,6 +284,12 @@ def _(
         log_every=1,
     )
     return (all_wandb_dfs,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""## View Wandb Raw Run Tables""")
+    return
 
 
 @app.cell
@@ -217,6 +347,46 @@ def _():
 
 @app.cell
 def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def _(dd_res_dir, dd_res_name_selector, dd_res_names, mo):
+    qa_parsing_switch = mo.ui.switch(label="Run QA parsing pipeline", value=False)
+    mo.vstack(
+        [
+            mo.md(
+                f"""
+    # Exploring QA Data Parsing
+
+    The process is:
+
+    """
+                + r"$$\textrm{HF} \rightarrow \textrm{DuckDB Table} \rightarrow \textrm{Parquet File}$$"
+                + f"""
+
+    First we start with the aggregated results from dir: {dd_res_dir}
+
+    Files: '{dd_res_name_selector}'
+            """
+            ),
+            *[mo.md(f"- {name}") for name in dd_res_names],
+            qa_parsing_switch,
+        ]
+    )
+    return (qa_parsing_switch,)
+
+
+@app.cell
+def _(mo, qa_parsing_switch):
+    mo.stop(
+        not qa_parsing_switch.value, mo.md("Flip the switch to parse the results qa data.")
+    )
     return
 
 
