@@ -1,3 +1,5 @@
 __pycache__/
 notebooks/*.jsonl
 notebooks/*.parquet
+data/
+.env
