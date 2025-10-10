@@ -34,6 +34,7 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "httpfs>=0.0.1",
     "altair>=5.5.0",
+    "watchdog>=6.0.0",
 ]
 
 [build-system]
