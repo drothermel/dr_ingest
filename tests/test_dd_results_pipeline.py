@@ -5,9 +5,15 @@ from pathlib import Path
 from typing import Any
 
 import polars as pl
+from polars.testing import assert_frame_equal
 import pytest
 
-from dr_ingest.pipelines.dd_results import parse_dd_results_train, parse_train_df
+from dr_ingest.pipelines.dd_results import (
+    SCALING_LAW_FILENAMES,
+    parse_dd_results_train,
+    parse_scaling_law_dir,
+    parse_train_df,
+)
 
 RAW_TO_FINAL_KEYS: dict[str, str] = {
     "acc_raw": "accuracy.raw",
@@ -57,6 +63,15 @@ def train_fixture() -> pl.DataFrame:
     if not path.exists():
         pytest.skip("train fixture parquet not available")
     return pl.read_parquet(path)
+
+
+@pytest.fixture(scope="module")
+def scaling_law_fixture_dir() -> Path:
+    required = [FIXTURE_DIR / filename for filename in SCALING_LAW_FILENAMES]
+    missing = [path for path in required if not path.exists()]
+    if missing:
+        pytest.skip(f"Scaling-law fixture files missing: {missing}")
+    return FIXTURE_DIR
 
 
 def test_parse_dd_results_train_preserves_metrics(train_fixture: pl.DataFrame) -> None:
@@ -128,3 +143,34 @@ def test_parse_train_df_preserves_full_metric_mapping(
             assert actual is None
         else:
             assert actual == pytest.approx(expected)
+
+
+def test_parse_scaling_law_dir_outputs(scaling_law_fixture_dir: Path) -> None:
+    outputs = parse_scaling_law_dir(scaling_law_fixture_dir)
+    expected_keys = {
+        "macro_avg_raw",
+        "scaling_law_true_raw",
+        "scaling_law_pred_one_step_raw",
+        "scaling_law_pred_two_step_raw",
+    }
+
+    assert set(outputs) == expected_keys
+
+    macro_output = outputs["macro_avg_raw"]
+    macro_expected = pl.read_parquet(
+        scaling_law_fixture_dir / "macro_avg-00000-of-00001.parquet"
+    )
+    assert_frame_equal(macro_output, macro_expected)
+
+    two_step = outputs["scaling_law_pred_two_step_raw"]
+    assert not two_step.is_empty()
+    required_columns = {
+        "id",
+        "task",
+        "recipe",
+        "fit_config",
+        "pred_task_losses",
+        "pred_task_loss_to_metrics",
+        "pred_task_metrics",
+    }
+    assert required_columns.issubset(two_step.columns)

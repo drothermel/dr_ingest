@@ -6,11 +6,11 @@ import shutil
 import time
 from pathlib import Path
 
-import duckdb
 import polars as pl
 from dotenv import load_dotenv
 
 from dr_ingest.pipelines.dd_results import parse_train_df
+from dr_ingest.hf_upload import upload_file_to_hf
 from dr_ingest.raw_download import (
     DD_NUM_TRAIN_FILES,
     DD_RESULTS_REPO,
@@ -57,6 +57,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Upload the parsed parquet to Hugging Face using DuckDB COPY.",
     )
+    parser.add_argument(
+        "--upload-only",
+        action="store_true",
+        help="Skip parsing and only upload the existing output parquet.",
+    )
     return parser.parse_args()
 
 
@@ -99,27 +104,15 @@ def upload_parquet_to_hf(local_path: Path) -> None:
         )
 
     print(f"Uploading {local_path} -> {HF_TRAIN_RESULTS_URI}")
-    with duckdb.connect() as conn:
-        # Ensure HTTPFS extension is available for remote COPY operations.
-        conn.execute("INSTALL httpfs;")
-        conn.execute("LOAD httpfs;")
-
-        token_literal = hf_token.replace("'", "''")
-        conn.execute(
-            f"""
-            CREATE SECRET IF NOT EXISTS hf_token (
-                TYPE HUGGINGFACE,
-                TOKEN '{token_literal}'
-            );
-            """
-        )
-
-        start = time.time()
-        conn.execute(
-            "COPY (SELECT * FROM read_parquet(?)) TO ? (FORMAT PARQUET);",
-            [str(local_path), HF_TRAIN_RESULTS_URI],
-        )
-        elapsed = time.time() - start
+    start = time.time()
+    upload_file_to_hf(
+        local_path,
+        repo_id="drotherm/dd_parsed",
+        path_in_repo="train_results.parquet",
+        token=hf_token,
+        repo_type="dataset",
+    )
+    elapsed = time.time() - start
     print(f"Upload completed in {elapsed:.2f} seconds.")
 
 
@@ -127,6 +120,16 @@ def main() -> None:
     load_dotenv()
     args = parse_args()
     source_dir = args.source_dir.expanduser()
+    output_path = args.output.expanduser()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if args.upload_only:
+        if not output_path.exists():
+            raise FileNotFoundError(
+                f"Output file {output_path} not found; cannot upload-only."
+            )
+        upload_parquet_to_hf(output_path)
+        return
+
     shard_paths = download_train_shards(source_dir, args.redownload)
     shard_paths, shard_frames, combined = read_shards(shard_paths)
     print("Loaded shards:")
@@ -135,8 +138,6 @@ def main() -> None:
 
     parsed = parse_train_df(combined)
 
-    output_path = args.output.expanduser()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists() and not args.force:
         raise FileExistsError(
             f"Output file {output_path} already exists. Use --force to overwrite."
