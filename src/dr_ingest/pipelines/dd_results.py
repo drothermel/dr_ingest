@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import polars as pl
@@ -13,6 +14,10 @@ from dr_ingest.normalization import (
 )
 from dr_ingest.parse import parse_sl_setup_to_config
 from dr_ingest.parallel import list_merge, parallel_process, set_merge
+
+SCALING_LAW_MACRO_FILENAME = "macro_avg-00000-of-00001.parquet"
+SCALING_LAW_FIT_FILENAME = "scaling_law_fit-00000-of-00001.parquet"
+SCALING_LAW_FILENAMES = [SCALING_LAW_MACRO_FILENAME, SCALING_LAW_FIT_FILENAME]
 
 
 def str_list_to_dicts(items: list[str]) -> list[dict[str, Any]]:
@@ -237,3 +242,31 @@ def extract_one_step_preds(col_list: list[dict[str, Any]]) -> list[dict[str, Any
             }
         )
     return output
+
+
+def parse_scaling_law_dir(source_dir: Path) -> dict[str, pl.DataFrame]:
+    """Load and parse scaling-law parquet files from a directory.
+
+    Parameters
+    ----------
+    source_dir:
+        Directory containing the macro-average and scaling-law fit parquet files.
+
+    Returns
+    -------
+    dict[str, pl.DataFrame]
+        Dictionary including the macro-average dataframe and parsed scaling-law outputs.
+    """
+
+    macro_path = (source_dir / SCALING_LAW_MACRO_FILENAME).resolve()
+    fit_path = (source_dir / SCALING_LAW_FIT_FILENAME).resolve()
+
+    missing: list[Path] = [path for path in (macro_path, fit_path) if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing scaling-law parquet files: {missing}")
+
+    macro_df = pl.read_parquet(macro_path)
+    scaling_law_df = pl.read_parquet(fit_path)
+    outputs = parse_sl_results(scaling_law_df)
+    outputs["macro_avg_raw"] = macro_df
+    return outputs
