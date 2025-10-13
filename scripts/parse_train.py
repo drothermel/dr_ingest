@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import argparse
+import shutil
+from pathlib import Path
+
+import polars as pl
+
+from dr_ingest.pipelines.dd_results import parse_train_df
+from dr_ingest.raw_download import (
+    DD_NUM_TRAIN_FILES,
+    DD_RESULTS_REPO,
+    DD_TRAIN_FILE_PATH_FORMAT_STR,
+    get_hf_download_path,
+    get_hf_fs,
+)
+
+SCRIPT_PATH = Path(__file__).resolve()
+REPO_ROOT = SCRIPT_PATH.parents[2]
+DEFAULT_SOURCE_DIR = Path("data")
+DEFAULT_OUTPUT_PATH = Path("data/train_results.parquet")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Parse DD train shards into a consolidated parquet dataset."
+    )
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        default=DEFAULT_SOURCE_DIR,
+        help="Local directory where raw train shards will be stored.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT_PATH,
+        help="Destination parquet path for consolidated train results.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite the output file if it already exists.",
+    )
+    parser.add_argument(
+        "--redownload",
+        action="store_true",
+        help="Force redownload of train shards even if they already exist.",
+    )
+    return parser.parse_args()
+
+
+def download_train_shards(destination: Path, redownload: bool) -> list[Path]:
+    destination.mkdir(parents=True, exist_ok=True)
+    fs = get_hf_fs()
+    local_paths: list[Path] = []
+    for idx in range(DD_NUM_TRAIN_FILES):
+        filename = DD_TRAIN_FILE_PATH_FORMAT_STR.format(idx).split("/")[-1]
+        local_path = destination / filename
+        remote_path = get_hf_download_path(
+            DD_RESULTS_REPO, f"data/{filename}"
+        )
+        if local_path.exists() and not redownload:
+            print(f"Skipping download for {filename} (already exists).")
+        else:
+            print(f"Downloading {remote_path} -> {local_path}")
+            with fs.open(remote_path, "rb") as src, local_path.open("wb") as dst:
+                shutil.copyfileobj(src, dst)
+        local_paths.append(local_path)
+    return local_paths
+
+
+def read_shards(file_paths: list[Path]) -> tuple[list[Path], list[pl.DataFrame], pl.DataFrame]:
+    if not file_paths:
+        raise FileNotFoundError("No train shard paths provided for parsing.")
+    shard_frames = [pl.read_parquet(path) for path in file_paths]
+    combined = pl.concat(shard_frames, how="vertical")
+    return file_paths, shard_frames, combined
+
+
+def main() -> None:
+    args = parse_args()
+    source_dir = args.source_dir.expanduser()
+    shard_paths = download_train_shards(source_dir, args.redownload)
+    shard_paths, shard_frames, combined = read_shards(shard_paths)
+    print("Loaded shards:")
+    for path, frame in zip(shard_paths, shard_frames, strict=False):
+        print(f"- {path.name}: {frame.shape[0]} rows")
+
+    parsed = parse_train_df(combined)
+
+    output_path = args.output.expanduser()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.exists() and not args.force:
+        raise FileExistsError(
+            f"Output file {output_path} already exists. Use --force to overwrite."
+        )
+
+    parsed.write_parquet(output_path)
+    print(
+        f"Wrote parsed train results to {output_path} "
+        f"({parsed.height} rows, {parsed.width} columns)."
+    )
+
+
+if __name__ == "__main__":
+    main()
