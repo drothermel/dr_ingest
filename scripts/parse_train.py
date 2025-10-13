@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
+import time
 from pathlib import Path
 
+import duckdb
 import polars as pl
+from dotenv import load_dotenv
 
 from dr_ingest.pipelines.dd_results import parse_train_df
 from dr_ingest.raw_download import (
@@ -19,6 +23,7 @@ SCRIPT_PATH = Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parents[2]
 DEFAULT_SOURCE_DIR = Path("data")
 DEFAULT_OUTPUT_PATH = Path("data/train_results.parquet")
+HF_TRAIN_RESULTS_URI = "hf://datasets/drotherm/dd_parsed/train_results.parquet"
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +51,11 @@ def parse_args() -> argparse.Namespace:
         "--redownload",
         action="store_true",
         help="Force redownload of train shards even if they already exist.",
+    )
+    parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="Upload the parsed parquet to Hugging Face using DuckDB COPY.",
     )
     return parser.parse_args()
 
@@ -78,7 +88,43 @@ def read_shards(file_paths: list[Path]) -> tuple[list[Path], list[pl.DataFrame],
     return file_paths, shard_frames, combined
 
 
+def upload_parquet_to_hf(local_path: Path) -> None:
+    if not local_path.exists():
+        raise FileNotFoundError(f"Parquet file {local_path} does not exist for upload.")
+
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        raise EnvironmentError(
+            "HF_TOKEN environment variable is required for uploading to Hugging Face."
+        )
+
+    print(f"Uploading {local_path} -> {HF_TRAIN_RESULTS_URI}")
+    with duckdb.connect() as conn:
+        # Ensure HTTPFS extension is available for remote COPY operations.
+        conn.execute("INSTALL httpfs;")
+        conn.execute("LOAD httpfs;")
+
+        token_literal = hf_token.replace("'", "''")
+        conn.execute(
+            f"""
+            CREATE SECRET IF NOT EXISTS hf_token (
+                TYPE HUGGINGFACE,
+                TOKEN '{token_literal}'
+            );
+            """
+        )
+
+        start = time.time()
+        conn.execute(
+            "COPY (SELECT * FROM read_parquet(?)) TO ? (FORMAT PARQUET);",
+            [str(local_path), HF_TRAIN_RESULTS_URI],
+        )
+        elapsed = time.time() - start
+    print(f"Upload completed in {elapsed:.2f} seconds.")
+
+
 def main() -> None:
+    load_dotenv()
     args = parse_args()
     source_dir = args.source_dir.expanduser()
     shard_paths = download_train_shards(source_dir, args.redownload)
@@ -101,6 +147,9 @@ def main() -> None:
         f"Wrote parsed train results to {output_path} "
         f"({parsed.height} rows, {parsed.width} columns)."
     )
+
+    if args.upload:
+        upload_parquet_to_hf(output_path)
 
 
 if __name__ == "__main__":
