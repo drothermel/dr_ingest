@@ -118,7 +118,7 @@ class HFLocation(BaseModel):
     # --- helpers ---------------------------------------------------------
 
     @staticmethod
-    def _norm_posix(path: str | Path) -> str:
+    def norm_posix(path: str | Path) -> str:
         """Ensure repo-internal, forward-slashed, no leading slash."""
         p = PurePosixPath(str(path))
         return str(p).lstrip("/")
@@ -127,26 +127,35 @@ class HFLocation(BaseModel):
     def _is_dir(path: str | Path) -> bool:
         return str(path).endswith("/") or not Path(path).suffix
 
+    def resolve_filepaths(
+        self,
+        extra_paths: list[str | Path] | None = None,
+    ) -> list[str]:
+        return [
+            *(self.filepaths or []),
+            *[self.norm_posix(p) for p in extra_paths or []],
+        ]
+
     def get_path_uri(self, path: str | Path) -> HFResource:
         """URI to reference the file in python APIs."""
-        return f"{self.repo_uri}/{self._norm_posix(path)}"
+        return f"{self.repo_uri}/{self.norm_posix(path)}"
 
     def get_path_link(self, path: str | Path) -> HttpUrl:
         """Web URL to view the file in the browser."""
-        path = self._norm_posix(path)
+        path = self.norm_posix(path)
         path_type = "tree" if self._is_dir(path) else "blob"
         return HttpUrl(f"{self.repo_link}/{path_type}/main/{path}")
 
     def get_rest_path_url(self, path: str | Path) -> HttpUrl:
         """REST API URL to view directory info."""
-        path = self._norm_posix(path)
+        path = self.norm_posix(path)
         if not self._is_dir(path):
             raise ValueError("REST endpoint only supports directories, not files.")
         return HttpUrl(f"{self.rest_api_repo_url}/tree/main/{path}")
 
     def get_file_download_link(self, filepath: str | Path) -> HttpUrl:
         """Direct download link for a single file."""
-        path = self._norm_posix(filepath)
+        path = self.norm_posix(filepath)
         if self._is_dir(path):
             raise ValueError("Download link only supports files, not directories.")
         return HttpUrl(f"{self.repo_link}/resolve/main/{path}")
@@ -162,6 +171,6 @@ class HFLocation(BaseModel):
 
         seen: dict[str, None] = {}
         for item in items:
-            uri = self.get_path_uri(self._norm_posix(item))
+            uri = self.get_path_uri(self.norm_posix(item))
             seen.setdefault(uri, None)
         return list(seen.keys())
