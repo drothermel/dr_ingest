@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from pathlib import Path, PurePosixPath
 from typing import Annotated, ClassVar
 
-from pydantic import BaseModel, Field, HttpUrl, computed_field
+from pydantic import BaseModel, Field, HttpUrl, computed_field, field_validator
 
 from dr_ingest.utils import add_marimo_display
 
@@ -114,6 +114,13 @@ class HFLocation(BaseModel):
             repo_name=repo_name,
             filepaths=resolved_paths or None,
         )
+
+    @field_validator("filepaths")
+    @classmethod
+    def posix_norm_filepaths(cls, v: list[str | Path] | None) -> list[str] | None:
+        if v is None:
+            return None
+        return [cls.norm_posix(p) for p in v]
 
     # --- helpers ---------------------------------------------------------
 
