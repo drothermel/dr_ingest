@@ -10,7 +10,7 @@ import polars as pl
 from dotenv import load_dotenv
 
 from dr_ingest.configs import DataDecideConfig, Paths
-from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
+from dr_ingest.hf import HFLocation, download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def upload_parquet_to_hf(local_path: Path) -> None:
+def upload_parquet_to_hf(local_path: Path, hf_location: HFLocation) -> None:
     if not local_path.exists():
         raise FileNotFoundError(f"Parquet file {local_path} does not exist for upload.")
 
@@ -49,11 +49,10 @@ def upload_parquet_to_hf(local_path: Path) -> None:
     print(f"Uploading {local_path} to huggingface")
     start = time.time()
     upload_file_to_hf(
-        local_path,
-        repo_id="drotherm/dd_parsed",
+        local_path=local_path,
+        hf_loc=hf_location,
         path_in_repo="train_results.parquet",
-        token=hf_token,
-        repo_type="dataset",
+        hf_token=hf_token,
     )
     elapsed = time.time() - start
     print(f"Upload completed in {elapsed:.2f} seconds.")
@@ -68,6 +67,8 @@ def main() -> None:
     paths = Paths()
     dd_cfg = DataDecideConfig()
 
+    results_location = dd_cfg.source_config.results_hf
+
     output_path = Path(paths.data_cache_dir / dd_cfg.results_filename)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if args.upload_only:
@@ -75,10 +76,9 @@ def main() -> None:
             raise FileNotFoundError(
                 f"Output file {output_path} not found; cannot upload-only."
             )
-        upload_parquet_to_hf(output_path)
+        upload_parquet_to_hf(output_path, results_location)
         return
 
-    results_location = dd_cfg.source_config.results_hf
     filepaths = results_location.filepaths or []
     if not filepaths:
         raise ValueError("DataDecide config missing train shard filepaths.")
@@ -115,7 +115,7 @@ def main() -> None:
     )
 
     if args.upload:
-        upload_parquet_to_hf(output_path)
+        upload_parquet_to_hf(output_path, results_location)
 
 
 if __name__ == "__main__":

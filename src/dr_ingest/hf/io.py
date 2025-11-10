@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import duckdb
 import pandas as pd
@@ -17,23 +17,26 @@ from .location import HFLocation
 __all__ = [
     "download_tables_from_hf",
     "query_data_from_hf",
+    "upload_file_to_hf",
 ]
 
 
 def upload_file_to_hf(
     local_path: Path,
-    repo_id: str,
-    path_in_repo: str = "",
-    token: str | None = None,
-    repo_type: str = "dataset",
+    *,
+    hf_loc: HFLocation,
+    path_in_repo: str | None = None,
+    hf_token: str | None = None,
 ) -> None:
     """Upload a single file to Hugging Face Hub."""
+    token = _resolve_hf_token(hf_token)
+    repo_path = _resolve_upload_path(hf_loc, path_in_repo)
     api = HfApi(token=token)
     api.upload_file(
         path_or_fileobj=str(local_path),
-        repo_id=repo_id,
-        path_in_repo=path_in_repo,
-        repo_type=repo_type,
+        repo_id=hf_loc.repo_id,
+        path_in_repo=repo_path,
+        repo_type=hf_loc.repo_type,
         token=token,
     )
 
@@ -116,3 +119,22 @@ def _resolve_hf_token(explicit_token: str | None) -> str | None:
         return explicit_token
     auth = AuthSettings()
     return os.getenv(auth.hf_env_var) if auth.hf_env_var else None
+
+
+def _resolve_upload_path(
+    hf_loc: HFLocation,
+    explicit_path: str | None,
+) -> str:
+    if explicit_path:
+        return _normalize_repo_path(explicit_path)
+
+    filepaths = hf_loc.filepaths or []
+    if len(filepaths) != 1:
+        raise ValueError(
+            "HFLocation must define exactly one filepath or `path_in_repo` must be provided."
+        )
+    return _normalize_repo_path(filepaths[0])
+
+
+def _normalize_repo_path(path: str) -> str:
+    return str(PurePosixPath(path)).lstrip("/")
