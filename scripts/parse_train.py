@@ -12,7 +12,7 @@ from huggingface_hub import HfFileSystem
 
 from dr_ingest import HFLocation
 from dr_ingest.configs import DataDecideConfig, Paths
-from dr_ingest.hf_upload import upload_file_to_hf
+from dr_ingest.hf.hf_upload import upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 
