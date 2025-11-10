@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import typer
+from pydantic.experimental.missing_sentinel import MISSING
 
 from dr_ingest.configs import (
     DataDecideConfig,
@@ -60,7 +61,7 @@ def download(
     data_cache_dir: str | None = None,
 ) -> None:
     """Download raw Data Decide Results from HF to Local"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     dd_cfg = DataDecideConfig()
     dd_source_hf_loc = dd_cfg.source_config.results_hf
     table_paths = download_tables_from_hf(
@@ -77,7 +78,7 @@ def parse(
     data_cache_dir: str | None = None,
 ) -> None:
     """Parse already downloaded Data Decide Results"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     source_filepaths = resolve_local_datadecide_filepaths(paths=paths)
     output_path = resolve_parsed_output_path(paths=paths)
 
@@ -93,7 +94,7 @@ def upload(
     data_cache_dir: str | None = None,
 ) -> None:
     """Upload parsed Data Decide Results from local to HF"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     parsed_pretrain_loc = ParsedSourceConfig().pretrain
     output_path = resolve_parsed_output_path(paths=paths)
     if not output_path.exists():
