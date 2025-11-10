@@ -64,6 +64,47 @@ class DataDecideConfig(BaseModel):
     step_col: Literal["step"] = "step"
     seed_col: Literal["seed"] = "seed"
     params_col: Literal["params"] = "params"
+    acc_baseline_col: Literal["acc_baseline"] = "acc_baseline"
+    prob_baseline_col: Literal["prob_baseline"] = "prob_baseline"
+
+    ## Metric Column Remapping (raw -> normalized)
+    metric_column_renames: dict[str, str] = Field(
+        default_factory=lambda: {
+            "acc_raw": "metrics_acc_raw",
+            "acc_per_token": "metrics_acc_per_token",
+            "acc_per_char": "metrics_acc_per_char",
+            "acc_per_byte": "metrics_acc_per_byte",
+            "acc_uncond": "metrics_acc_uncond",
+            "sum_logits_corr": "metrics_sum_logits_correct_raw",
+            "logits_per_token_corr": "metrics_sum_logits_correct_per_token",
+            "logits_per_char_corr": "metrics_sum_logits_correct_per_char",
+            "correct_prob": "metrics_correct_prob_raw",
+            "correct_prob_per_token": "metrics_correct_prob_per_token",
+            "correct_prob_per_char": "metrics_correct_prob_per_char",
+            "margin": "metrics_margin_raw",
+            "margin_per_token": "metrics_margin_per_token",
+            "margin_per_char": "metrics_margin_per_char",
+            "total_prob": "metrics_total_prob_raw",
+            "total_prob_per_token": "metrics_total_prob_per_token",
+            "total_prob_per_char": "metrics_total_prob_per_char",
+            "uncond_correct_prob": "metrics_uncond_correct_prob_raw",
+            "uncond_correct_prob_per_token": "metrics_uncond_correct_prob_per_token",
+            "uncond_correct_prob_per_char": "metrics_uncond_correct_prob_per_char",
+            "norm_correct_prob": "metrics_norm_correct_prob_raw",
+            "norm_correct_prob_per_token": "metrics_norm_correct_prob_per_token",
+            "norm_correct_prob_per_char": "metrics_norm_correct_prob_per_char",
+            "bits_per_byte_corr": "metrics_bits_per_byte_correct",
+            "primary_metric": "metrics_primary_metric",
+        }
+    )
+
+    ## Task Group Mapping
+    task_group_col: Literal["task_group"] = "task_group"
+    task_group_map: dict[str, str] = Field(
+        default_factory=lambda: {
+            "mmlu_": "mmlu",
+        }
+    )
 
     ## Baseline Values
     prob_baseline: float = 0.0

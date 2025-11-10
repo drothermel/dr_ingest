@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 import pandas as pd
-import polars as pl
 import typer
+from pydantic.experimental.missing_sentinel import MISSING
 
 from dr_ingest.configs import (
     DataDecideConfig,
@@ -17,28 +16,6 @@ from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 app = typer.Typer()
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Parse DD train shards into a consolidated parquet dataset."
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Redownload and overwrite the output file if it already exists.",
-    )
-    parser.add_argument(
-        "--upload",
-        action="store_true",
-        help="Upload the parsed parquet to Hugging Face using DuckDB COPY.",
-    )
-    parser.add_argument(
-        "--upload-only",
-        action="store_true",
-        help="Skip parsing and only upload the existing output parquet.",
-    )
-    return parser.parse_args()
 
 
 def resolve_local_datadecide_filepaths(
@@ -84,7 +61,7 @@ def download(
     data_cache_dir: str | None = None,
 ) -> None:
     """Download raw Data Decide Results from HF to Local"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     dd_cfg = DataDecideConfig()
     dd_source_hf_loc = dd_cfg.source_config.results_hf
     table_paths = download_tables_from_hf(
@@ -101,13 +78,13 @@ def parse(
     data_cache_dir: str | None = None,
 ) -> None:
     """Parse already downloaded Data Decide Results"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     source_filepaths = resolve_local_datadecide_filepaths(paths=paths)
     output_path = resolve_parsed_output_path(paths=paths)
 
     # Load and parse the tables
     source_df = validate_and_merge_tables(source_filepaths)
-    parsed_df = (parse_train_df(pl.from_pandas(source_df))).to_pandas()
+    parsed_df = parse_train_df(source_df)
     parsed_df.to_parquet(output_path, index=False)
     print(f">> Wrote parsed train results to {output_path}")
 
@@ -117,7 +94,7 @@ def upload(
     data_cache_dir: str | None = None,
 ) -> None:
     """Upload parsed Data Decide Results from local to HF"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
     parsed_pretrain_loc = ParsedSourceConfig().pretrain
     output_path = resolve_parsed_output_path(paths=paths)
     if not output_path.exists():
