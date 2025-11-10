@@ -8,21 +8,12 @@ from pathlib import Path
 
 import polars as pl
 from dotenv import load_dotenv
+from huggingface_hub import HfFileSystem
 
+from dr_ingest import HFLocation
 from dr_ingest.configs import DataDecideConfig, Paths
 from dr_ingest.hf_upload import upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
-from dr_ingest.raw_download import (
-    DD_NUM_TRAIN_FILES,
-    DD_RESULTS_REPO,
-    DD_TRAIN_FILE_PATH_FORMAT_STR,
-    get_hf_download_path,
-    get_hf_fs,
-)
-
-DEFAULT_SOURCE_DIR = Path("data")
-DEFAULT_OUTPUT_PATH = Path("data/train_results.parquet")
-HF_TRAIN_RESULTS_URI = "hf://datasets/drotherm/dd_parsed/train_results.parquet"
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,14 +38,24 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def download_train_shards(destination: Path, redownload: bool) -> list[Path]:
+def download_train_shards(
+    destination: Path,
+    redownload: bool,
+    hf_location: HFLocation,
+) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=True)
-    fs = get_hf_fs()
+    fs = HfFileSystem()
+    filepaths = hf_location.filepaths or []
+    if not filepaths:
+        raise ValueError(
+            "HF location must include explicit filepaths for train shard download."
+        )
+
     local_paths: list[Path] = []
-    for idx in range(DD_NUM_TRAIN_FILES):
-        filename = DD_TRAIN_FILE_PATH_FORMAT_STR.format(idx).split("/")[-1]
+    for filepath in filepaths:
+        filename = Path(filepath).name
         local_path = destination / filename
-        remote_path = get_hf_download_path(DD_RESULTS_REPO, f"data/{filename}")
+        remote_path = hf_location.get_path_uri(filepath)
         if local_path.exists() and not redownload:
             print(f"Skipping download for {filename} (already exists).")
         else:
@@ -85,7 +86,7 @@ def upload_parquet_to_hf(local_path: Path) -> None:
             "HF_TOKEN environment variable is required for uploading to Hugging Face."
         )
 
-    print(f"Uploading {local_path} -> {HF_TRAIN_RESULTS_URI}")
+    print(f"Uploading {local_path} to huggingface")
     start = time.time()
     upload_file_to_hf(
         local_path,
@@ -117,7 +118,11 @@ def main() -> None:
         upload_parquet_to_hf(output_path)
         return
 
-    shard_paths = download_train_shards(paths.data_cache_dir, args.force)
+    shard_paths = download_train_shards(
+        paths.data_cache_dir,
+        args.force,
+        dd_cfg.source_config.results_hf,
+    )
     shard_paths, shard_frames, combined = read_shards(shard_paths)
     print("Loaded shards:")
     for path, frame in zip(shard_paths, shard_frames, strict=False):
