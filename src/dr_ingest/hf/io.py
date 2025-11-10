@@ -23,8 +23,8 @@ __all__ = [
 def upload_file_to_hf(
     local_path: str | Path,
     hf_loc: HFLocation,
-    path_in_repo: str,
     *,
+    path_in_repo: str | None = None,
     hf_token: str | None = None,
 ) -> None:
     """Upload a single file to Hugging Face Hub."""
@@ -32,9 +32,19 @@ def upload_file_to_hf(
     api.upload_file(
         path_or_fileobj=str(local_path),
         repo_id=hf_loc.repo_id,
-        path_in_repo=hf_loc.norm_posix(path_in_repo),
+        path_in_repo=resolve_path_in_repo(hf_loc, path_in_repo),
         repo_type=hf_loc.repo_type,
     )
+
+
+def resolve_path_in_repo(hf_loc: HFLocation, path_in_repo: str | None = None) -> str:
+    if path_in_repo:
+        return hf_loc.norm_posix(path_in_repo)
+    if not hf_loc.filepaths or len(hf_loc.filepaths) != 1:
+        raise ValueError(
+            "hf_loc must contain exactly one file if path_in_repo isn't provided"
+        )
+    return hf_loc.filepaths[0]
 
 
 def query_data_from_hf(
