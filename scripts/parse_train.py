@@ -9,8 +9,8 @@ from pathlib import Path
 import polars as pl
 from dotenv import load_dotenv
 
-from dr_ingest.pipelines.dd_results import parse_train_df
 from dr_ingest.hf_upload import upload_file_to_hf
+from dr_ingest.pipelines.dd_results import parse_train_df
 from dr_ingest.raw_download import (
     DD_NUM_TRAIN_FILES,
     DD_RESULTS_REPO,
@@ -72,9 +72,7 @@ def download_train_shards(destination: Path, redownload: bool) -> list[Path]:
     for idx in range(DD_NUM_TRAIN_FILES):
         filename = DD_TRAIN_FILE_PATH_FORMAT_STR.format(idx).split("/")[-1]
         local_path = destination / filename
-        remote_path = get_hf_download_path(
-            DD_RESULTS_REPO, f"data/{filename}"
-        )
+        remote_path = get_hf_download_path(DD_RESULTS_REPO, f"data/{filename}")
         if local_path.exists() and not redownload:
             print(f"Skipping download for {filename} (already exists).")
         else:
@@ -85,7 +83,9 @@ def download_train_shards(destination: Path, redownload: bool) -> list[Path]:
     return local_paths
 
 
-def read_shards(file_paths: list[Path]) -> tuple[list[Path], list[pl.DataFrame], pl.DataFrame]:
+def read_shards(
+    file_paths: list[Path],
+) -> tuple[list[Path], list[pl.DataFrame], pl.DataFrame]:
     if not file_paths:
         raise FileNotFoundError("No train shard paths provided for parsing.")
     shard_frames = [pl.read_parquet(path) for path in file_paths]
@@ -99,7 +99,7 @@ def upload_parquet_to_hf(local_path: Path) -> None:
 
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
-        raise EnvironmentError(
+        raise OSError(
             "HF_TOKEN environment variable is required for uploading to Hugging Face."
         )
 
