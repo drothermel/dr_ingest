@@ -134,6 +134,11 @@ class HFLocation(BaseModel):
     def _is_dir(path: str | Path) -> bool:
         return str(path).endswith("/") or not Path(path).suffix
 
+    def get_the_single_filepath(self) -> str:
+        if self.filepaths is None or len(self.filepaths) != 1:
+            raise ValueError("Expected exactly one filepath")
+        return self.filepaths[0]
+
     def resolve_filepaths(
         self,
         extra_paths: list[str | Path] | None = None,

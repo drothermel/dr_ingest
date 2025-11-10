@@ -7,9 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 import polars as pl
-from dotenv import load_dotenv
 
-from dr_ingest.configs import DataDecideConfig, Paths
+from dr_ingest.configs import DataDecideConfig, ParsedSourceConfig, Paths
 from dr_ingest.hf import HFLocation, download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
@@ -36,55 +35,46 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def upload_parquet_to_hf(local_path: Path, hf_location: HFLocation) -> None:
+def upload_parquet_to_hf(local_path: Path, hf_loc: HFLocation) -> None:
     if not local_path.exists():
         raise FileNotFoundError(f"Parquet file {local_path} does not exist for upload.")
-
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        raise OSError(
-            "HF_TOKEN environment variable is required for uploading to Hugging Face."
-        )
-
-    print(f"Uploading {local_path} to huggingface")
+    print(f"Uploading {local_path} to huggingface {hf_loc}")
     start = time.time()
     upload_file_to_hf(
         local_path=local_path,
-        hf_loc=hf_location,
-        path_in_repo="train_results.parquet",
-        hf_token=hf_token,
+        hf_loc=hf_loc,
     )
     elapsed = time.time() - start
     print(f"Upload completed in {elapsed:.2f} seconds.")
 
 
 def main() -> None:
-    # Old Config System
-    load_dotenv()
     args = parse_args()
-
-    # New Config System
     paths = Paths()
+
     dd_cfg = DataDecideConfig()
+    dd_source_hf_loc = dd_cfg.source_config.results_hf
 
-    results_location = dd_cfg.source_config.results_hf
+    parsed_cfg = ParsedSourceConfig()
+    parsed_hf_loc = parsed_cfg.pretrain
+    results_filename = parsed_hf_loc.get_the_single_filepath()
 
-    output_path = Path(paths.data_cache_dir / dd_cfg.results_filename)
+    output_path = Path(paths.data_cache_dir / results_filename)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if args.upload_only:
         if not output_path.exists():
             raise FileNotFoundError(
                 f"Output file {output_path} not found; cannot upload-only."
             )
-        upload_parquet_to_hf(output_path, results_location)
+        upload_parquet_to_hf(output_path, dd_source_hf_loc)
         return
 
-    filepaths = results_location.filepaths or []
+    filepaths = dd_source_hf_loc.filepaths or []
     if not filepaths:
         raise ValueError("DataDecide config missing train shard filepaths.")
 
     tables = download_tables_from_hf(
-        hf_loc=results_location,
+        hf_loc=dd_source_hf_loc,
         target_dir=paths.data_cache_dir,
         force_download=args.force,
     )
@@ -115,7 +105,7 @@ def main() -> None:
     )
 
     if args.upload:
-        upload_parquet_to_hf(output_path, results_location)
+        upload_parquet_to_hf(output_path, parsed_hf_loc)
 
 
 if __name__ == "__main__":
