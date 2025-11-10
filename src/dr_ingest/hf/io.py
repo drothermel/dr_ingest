@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
-from collections.abc import Iterable
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -17,72 +15,86 @@ from .location import HFLocation
 __all__ = [
     "download_tables_from_hf",
     "query_data_from_hf",
+    "query_with_duckdb",
     "upload_file_to_hf",
 ]
 
 
 def upload_file_to_hf(
-    local_path: Path,
-    *,
+    local_path: str | Path,
     hf_loc: HFLocation,
-    path_in_repo: str | None = None,
+    path_in_repo: str,
+    *,
     hf_token: str | None = None,
 ) -> None:
     """Upload a single file to Hugging Face Hub."""
-    token = _resolve_hf_token(hf_token)
-    repo_path = _resolve_upload_path(hf_loc, path_in_repo)
-    api = HfApi(token=token)
+    api = HfApi(token=AuthSettings().resolve("hf", hf_token))
     api.upload_file(
         path_or_fileobj=str(local_path),
         repo_id=hf_loc.repo_id,
-        path_in_repo=repo_path,
+        path_in_repo=hf_loc.norm_posix(path_in_repo),
         repo_type=hf_loc.repo_type,
-        token=token,
     )
 
 
 def query_data_from_hf(
     hf_loc: HFLocation,
     *,
-    filepaths: Iterable[str] | None = None,
+    filepaths: list[str | Path] | None = None,
     target_dir: Path | None = None,
     connection: duckdb.DuckDBPyConnection | None = None,
     hf_token: str | None = None,
     force_download: bool = False,
 ) -> dict[str, pd.DataFrame]:
     """Load tables from a Hugging Face dataset as Pandas DataFrames."""
-    resolved_paths = _resolve_filepaths(hf_loc, filepaths)
-
-    if connection is not None:
-        hf_uris = hf_loc.get_uris_for_files(resolved_paths, ignore_cfg_files=True)
-        results: dict[str, pd.DataFrame] = {}
-        for filepath, uri in zip(resolved_paths, hf_uris, strict=True):
-            hf_id = uri.removeprefix("hf://")
-            results[Path(filepath).stem] = connection.execute(
-                f"SELECT * FROM '{hf_id}'"  # noqa: S608
-            ).df()
-        return results
-
-    return download_tables_from_hf(
+    if connection is None:
+        return download_tables_from_hf(
+            hf_loc=hf_loc,
+            filepaths=filepaths,
+            target_dir=target_dir,
+            hf_token=hf_token,
+            force_download=force_download,
+        )
+    return query_with_duckdb(
         hf_loc=hf_loc,
-        filepaths=resolved_paths,
+        connection=connection,
+        filepaths=filepaths,
         target_dir=target_dir,
         hf_token=hf_token,
-        force_download=force_download,
     )
+
+
+def query_with_duckdb(
+    hf_loc: HFLocation,
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    filepaths: list[str | Path] | None = None,
+    target_dir: Path | None = None,
+    hf_token: str | None = None,
+    force_download: bool = False,
+) -> dict[str, pd.DataFrame]:
+    resolved_paths = hf_loc.resolve_filepaths(extra_paths=filepaths)
+    hf_uris = hf_loc.get_uris_for_files(resolved_paths, ignore_cfg_files=True)
+    results: dict[str, pd.DataFrame] = {}
+    for filepath, uri in zip(resolved_paths, hf_uris, strict=True):
+        hf_id = uri.removeprefix("hf://")
+        results[Path(filepath).stem] = connection.execute(
+            f"SELECT * FROM '{hf_id}'"  # noqa: S608
+        ).df()
+    return results
 
 
 def download_tables_from_hf(
     hf_loc: HFLocation,
     *,
-    filepaths: Iterable[str] | None = None,
+    filepaths: list[str | Path] | None = None,
     target_dir: Path | None = None,
     hf_token: str | None = None,
     force_download: bool = False,
 ) -> dict[str, pd.DataFrame]:
     """Download tables directly from Hugging Face storage."""
-    resolved_paths = _resolve_filepaths(hf_loc, filepaths)
-    token = _resolve_hf_token(hf_token)
+    resolved_paths = hf_loc.resolve_filepaths(extra_paths=filepaths)
+    token = AuthSettings().resolve("hf", hf_token)
 
     target_dir = target_dir or Paths().data_cache_dir
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -99,42 +111,3 @@ def download_tables_from_hf(
         )
         tables[Path(filepath).stem] = pd.read_parquet(local_path)
     return tables
-
-
-def _resolve_filepaths(
-    hf_loc: HFLocation,
-    filepaths: Iterable[str] | None,
-) -> list[str]:
-    resolved = list(filepaths or hf_loc.filepaths or [])
-    if not resolved:
-        raise ValueError(
-            "HFLocation must define `filepaths` or an explicit `filepaths` "
-            "argument must be provided."
-        )
-    return resolved
-
-
-def _resolve_hf_token(explicit_token: str | None) -> str | None:
-    if explicit_token:
-        return explicit_token
-    auth = AuthSettings()
-    return os.getenv(auth.hf_env_var) if auth.hf_env_var else None
-
-
-def _resolve_upload_path(
-    hf_loc: HFLocation,
-    explicit_path: str | None,
-) -> str:
-    if explicit_path:
-        return _normalize_repo_path(explicit_path)
-
-    filepaths = hf_loc.filepaths or []
-    if len(filepaths) != 1:
-        raise ValueError(
-            "HFLocation must define exactly one filepath or `path_in_repo` must be provided."
-        )
-    return _normalize_repo_path(filepaths[0])
-
-
-def _normalize_repo_path(path: str) -> str:
-    return str(PurePosixPath(path)).lstrip("/")

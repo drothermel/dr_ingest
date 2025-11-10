@@ -1,4 +1,9 @@
-from .io import download_tables_from_hf, query_data_from_hf, upload_file_to_hf
+from .io import (
+    download_tables_from_hf,
+    query_data_from_hf,
+    query_with_duckdb,
+    upload_file_to_hf,
+)
 from .location import (
     HFLocation,
     HFRepoID,
@@ -11,5 +16,6 @@ __all__ = [
     "HFResource",
     "download_tables_from_hf",
     "query_data_from_hf",
+    "query_with_duckdb",
     "upload_file_to_hf",
 ]
