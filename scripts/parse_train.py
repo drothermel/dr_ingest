@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-import polars as pl
 import typer
 
 from dr_ingest.configs import (
@@ -107,7 +106,7 @@ def parse(
 
     # Load and parse the tables
     source_df = validate_and_merge_tables(source_filepaths)
-    parsed_df = (parse_train_df(pl.from_pandas(source_df))).to_pandas()
+    parsed_df = parse_train_df(source_df)
     parsed_df.to_parquet(output_path, index=False)
     print(f">> Wrote parsed train results to {output_path}")
 

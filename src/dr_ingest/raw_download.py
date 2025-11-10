@@ -6,7 +6,6 @@ from typing import Any
 
 import duckdb
 import pandas as pd
-import polars as pl
 import srsly
 from dr_wandb import fetch_project_runs
 from huggingface_hub import HfFileSystem
@@ -39,9 +38,9 @@ def get_hf_download_path(repo: str, filepath: str) -> str:
     return f"hf://datasets/{repo}/{filepath}"
 
 
-def pl_load_parquet_from_hf(fs: HfFileSystem, path: str) -> pl.DataFrame:
+def load_parquet_from_hf(fs: HfFileSystem, path: str) -> pd.DataFrame:
     with fs.open(path, "rb") as f:
-        return pl.read_parquet(f)
+        return pd.read_parquet(f)
 
 
 # -------------------------------------------------
@@ -151,7 +150,7 @@ def wandb_parse_fxn(
     yield "history", history_df
 
 
-def dd_results_load_fxn(**kwargs: Any) -> dict[str, pl.DataFrame]:
+def dd_results_load_fxn(**kwargs: Any) -> dict[str, pd.DataFrame]:
     fs = get_hf_fs()
     outputs = {}
     train_dfs = []
@@ -159,22 +158,22 @@ def dd_results_load_fxn(**kwargs: Any) -> dict[str, pl.DataFrame]:
         start = time.time()
         fp = DD_TRAIN_FILE_PATH_FORMAT_STR.format(i)
         hf_path = get_hf_download_path(DD_RESULTS_REPO, fp)
-        train_dfs.append(pl_load_parquet_from_hf(fs, hf_path))
+        train_dfs.append(load_parquet_from_hf(fs, hf_path))
         print(f">> Downloaded {fp} in {time.time() - start:.2f} seconds")
-    outputs["train"] = pl.concat(train_dfs, how="vertical")
+    outputs["train"] = pd.concat(train_dfs, ignore_index=True)
 
     for fp in DD_RES_NAMES:
         hf_path = get_hf_download_path(
             DD_RESULTS_REPO, DD_RES_OTHER_PATH_FORMAT_STR.format(fp)
         )
         name = fp.split("-")[0]
-        outputs[name] = pl_load_parquet_from_hf(fs, hf_path)
+        outputs[name] = load_parquet_from_hf(fs, hf_path)
     return outputs
 
 
 def dd_results_parse_fxn(
-    outputs: dict[str, pl.DataFrame], **kwargs: Any
-) -> Iterator[tuple[str, pl.DataFrame]]:
+    outputs: dict[str, pd.DataFrame], **kwargs: Any
+) -> Iterator[tuple[str, pd.DataFrame]]:
     for name, df in outputs.items():
         if name == "train":
             yield "train", outputs["train"].pipe(parse_dd_results_train)

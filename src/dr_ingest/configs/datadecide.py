@@ -65,6 +65,37 @@ class DataDecideConfig(BaseModel):
     seed_col: Literal["seed"] = "seed"
     params_col: Literal["params"] = "params"
 
+    ## Metric Column Remapping (raw -> normalized)
+    metric_column_renames: dict[str, str] = Field(
+        default_factory=lambda: {
+            "acc_raw": "metrics_accuracy_raw",
+            "acc_per_token": "metrics_accuracy_per_token",
+            "acc_per_char": "metrics_accuracy_per_char",
+            "acc_per_byte": "metrics_accuracy_per_byte",
+            "acc_uncond": "metrics_accuracy_uncond",
+            "sum_logits_corr": "metrics_sum_logits_corr_raw",
+            "logits_per_token_corr": "metrics_sum_logits_corr_per_token",
+            "logits_per_char_corr": "metrics_sum_logits_corr_per_char",
+            "correct_prob": "metrics_correct_prob_raw",
+            "correct_prob_per_token": "metrics_correct_prob_per_token",
+            "correct_prob_per_char": "metrics_correct_prob_per_char",
+            "margin": "metrics_margin_raw",
+            "margin_per_token": "metrics_margin_per_token",
+            "margin_per_char": "metrics_margin_per_char",
+            "total_prob": "metrics_total_prob_raw",
+            "total_prob_per_token": "metrics_total_prob_per_token",
+            "total_prob_per_char": "metrics_total_prob_per_char",
+            "uncond_correct_prob": "metrics_uncond_correct_prob_raw",
+            "uncond_correct_prob_per_token": "metrics_uncond_correct_prob_per_token",
+            "uncond_correct_prob_per_char": "metrics_uncond_correct_prob_per_char",
+            "norm_correct_prob": "metrics_norm_correct_prob_raw",
+            "norm_correct_prob_per_token": "metrics_norm_correct_prob_per_token",
+            "norm_correct_prob_per_char": "metrics_norm_correct_prob_per_char",
+            "bits_per_byte_corr": "metrics_bits_per_byte_correct",
+            "primary_metric": "metrics_primary_metric",
+        }
+    )
+
     ## Baseline Values
     prob_baseline: float = 0.0
     mmlu_baseline: float = 0.25
