@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -16,28 +15,6 @@ from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 app = typer.Typer()
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Parse DD train shards into a consolidated parquet dataset."
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Redownload and overwrite the output file if it already exists.",
-    )
-    parser.add_argument(
-        "--upload",
-        action="store_true",
-        help="Upload the parsed parquet to Hugging Face using DuckDB COPY.",
-    )
-    parser.add_argument(
-        "--upload-only",
-        action="store_true",
-        help="Skip parsing and only upload the existing output parquet.",
-    )
-    return parser.parse_args()
 
 
 def resolve_local_datadecide_filepaths(
