@@ -6,6 +6,7 @@ import shutil
 import time
 from pathlib import Path
 
+from dr_ingest.hf import HFLocation, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import (
     SCALING_LAW_FILENAMES,
     parse_scaling_law_dir,
@@ -16,14 +17,14 @@ from dr_ingest.raw_download import (
     get_hf_download_path,
     get_hf_fs,
 )
-from dr_ingest.hf_upload import upload_file_to_hf
 from dotenv import load_dotenv
 
 SCRIPT_PATH = Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parents[2]
 DEFAULT_SOURCE_DIR = (REPO_ROOT / "data").resolve()
 DEFAULT_OUTPUT_DIR = (REPO_ROOT / "data/scaling_law").resolve()
-HF_SCALING_LAW_REPO_ID = "drotherm/dd_parsed"
+HF_SCALING_LAW_LOCATION = HFLocation(org="drotherm", repo_name="dd_parsed")
+HF_SCALING_LAW_REPO_ID = HF_SCALING_LAW_LOCATION.repo_id
 
 OUTPUT_NAME_MAP: dict[str, str] = {
     "macro_avg_raw": "macro_avg.parquet",
@@ -129,11 +130,10 @@ def upload_outputs(directory: Path) -> None:
         print(f"Uploading {local_path} -> {HF_SCALING_LAW_REPO_ID}:{filename}")
         start = time.time()
         upload_file_to_hf(
-            local_path,
-            repo_id=HF_SCALING_LAW_REPO_ID,
+            local_path=local_path,
+            hf_loc=HF_SCALING_LAW_LOCATION,
             path_in_repo=filename,
-            token=hf_token,
-            repo_type="dataset",
+            hf_token=hf_token,
         )
         elapsed = time.time() - start
         print(f"Upload completed in {elapsed:.2f} seconds.")
