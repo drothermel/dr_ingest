@@ -8,16 +8,34 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
-from huggingface_hub import hf_hub_download
+from huggingface_hub import HfApi, hf_hub_download
 
 from dr_ingest.configs import AuthSettings, Paths
 
-from .hf_location import HFLocation
+from .location import HFLocation
 
 __all__ = [
     "download_tables_from_hf",
     "query_data_from_hf",
 ]
+
+
+def upload_file_to_hf(
+    local_path: Path,
+    repo_id: str,
+    path_in_repo: str = "",
+    token: str | None = None,
+    repo_type: str = "dataset",
+) -> None:
+    """Upload a single file to Hugging Face Hub."""
+    api = HfApi(token=token)
+    api.upload_file(
+        path_or_fileobj=str(local_path),
+        repo_id=repo_id,
+        path_in_repo=path_in_repo,
+        repo_type=repo_type,
+        token=token,
+    )
 
 
 def query_data_from_hf(
@@ -27,6 +45,7 @@ def query_data_from_hf(
     target_dir: Path | None = None,
     connection: duckdb.DuckDBPyConnection | None = None,
     hf_token: str | None = None,
+    force_download: bool = False,
 ) -> dict[str, pd.DataFrame]:
     """Load tables from a Hugging Face dataset as Pandas DataFrames."""
     resolved_paths = _resolve_filepaths(hf_loc, filepaths)
@@ -46,6 +65,7 @@ def query_data_from_hf(
         filepaths=resolved_paths,
         target_dir=target_dir,
         hf_token=hf_token,
+        force_download=force_download,
     )
 
 
@@ -55,6 +75,7 @@ def download_tables_from_hf(
     filepaths: Iterable[str] | None = None,
     target_dir: Path | None = None,
     hf_token: str | None = None,
+    force_download: bool = False,
 ) -> dict[str, pd.DataFrame]:
     """Download tables directly from Hugging Face storage."""
     resolved_paths = _resolve_filepaths(hf_loc, filepaths)
@@ -71,6 +92,7 @@ def download_tables_from_hf(
             repo_type=hf_loc.repo_type,
             token=token,
             local_dir=str(target_dir),
+            force_download=force_download,
         )
         tables[Path(filepath).stem] = pd.read_parquet(local_path)
     return tables
