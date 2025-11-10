@@ -64,18 +64,20 @@ class DataDecideConfig(BaseModel):
     step_col: Literal["step"] = "step"
     seed_col: Literal["seed"] = "seed"
     params_col: Literal["params"] = "params"
+    acc_baseline_col: Literal["acc_baseline"] = "acc_baseline"
+    prob_baseline_col: Literal["prob_baseline"] = "prob_baseline"
 
     ## Metric Column Remapping (raw -> normalized)
     metric_column_renames: dict[str, str] = Field(
         default_factory=lambda: {
-            "acc_raw": "metrics_accuracy_raw",
-            "acc_per_token": "metrics_accuracy_per_token",
-            "acc_per_char": "metrics_accuracy_per_char",
-            "acc_per_byte": "metrics_accuracy_per_byte",
-            "acc_uncond": "metrics_accuracy_uncond",
-            "sum_logits_corr": "metrics_sum_logits_corr_raw",
-            "logits_per_token_corr": "metrics_sum_logits_corr_per_token",
-            "logits_per_char_corr": "metrics_sum_logits_corr_per_char",
+            "acc_raw": "metrics_acc_raw",
+            "acc_per_token": "metrics_acc_per_token",
+            "acc_per_char": "metrics_acc_per_char",
+            "acc_per_byte": "metrics_acc_per_byte",
+            "acc_uncond": "metrics_acc_uncond",
+            "sum_logits_corr": "metrics_sum_logits_correct_raw",
+            "logits_per_token_corr": "metrics_sum_logits_correct_per_token",
+            "logits_per_char_corr": "metrics_sum_logits_correct_per_char",
             "correct_prob": "metrics_correct_prob_raw",
             "correct_prob_per_token": "metrics_correct_prob_per_token",
             "correct_prob_per_char": "metrics_correct_prob_per_char",
@@ -93,6 +95,14 @@ class DataDecideConfig(BaseModel):
             "norm_correct_prob_per_char": "metrics_norm_correct_prob_per_char",
             "bits_per_byte_corr": "metrics_bits_per_byte_correct",
             "primary_metric": "metrics_primary_metric",
+        }
+    )
+
+    ## Task Group Mapping
+    task_group_col: Literal["task_group"] = "task_group"
+    task_group_map: dict[str, str] = Field(
+        default_factory=lambda: {
+            "mmlu_": "mmlu",
         }
     )
 
