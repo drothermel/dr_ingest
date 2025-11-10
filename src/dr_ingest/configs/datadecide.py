@@ -59,9 +59,6 @@ class DataDecideConfig(BaseModel):
         default_factory=DataDecideSourceConfig
     )
 
-    ## Default Filenames
-    results_filename: str = "train_results.parquet"
-
     ## Downloaded Col Names
     task_col: Literal["task"] = "task"
     step_col: Literal["step"] = "step"
