@@ -12,20 +12,18 @@ from dr_ingest.normalization import (
 )
 
 __all__ = [
-    "parse_dd_results_train",
+    "parse_metrics_col",
     "parse_train_df",
 ]
 
 
-def parse_dd_results_train(
+def parse_metrics_col(
     df: pd.DataFrame, config: DataDecideConfig | None = None
 ) -> pd.DataFrame:
-    if config is None:
-        config = DataDecideConfig()
-
+    cfg = config or DataDecideConfig()
     metrics_dicts = df["metrics"].apply(ast.literal_eval)
     metrics_df = pd.DataFrame(metrics_dicts.tolist())
-    metrics_df = metrics_df.rename(columns=config.metric_column_renames)
+    metrics_df = metrics_df.rename(columns=cfg.metric_column_renames)
     return df.drop(columns=["metrics"]).join(metrics_df)
 
 
@@ -36,7 +34,7 @@ def parse_train_df(
         config = DataDecideConfig()
 
     return (
-        df.pipe(parse_dd_results_train, config=config)
+        df.pipe(parse_metrics_col, config=config)
         .assign(
             recipe=df["data"].apply(normalize_ds_str),
             tokens_millions=df["tokens"].apply(normalize_tokens),
