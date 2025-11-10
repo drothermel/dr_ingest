@@ -19,8 +19,6 @@ from dr_ingest.raw_download import (
     get_hf_fs,
 )
 
-SCRIPT_PATH = Path(__file__).resolve()
-REPO_ROOT = SCRIPT_PATH.parents[2]
 DEFAULT_SOURCE_DIR = Path("data")
 DEFAULT_OUTPUT_PATH = Path("data/train_results.parquet")
 HF_TRAIN_RESULTS_URI = "hf://datasets/drotherm/dd_parsed/train_results.parquet"
