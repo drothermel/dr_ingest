@@ -1,3 +1,4 @@
+from .hf_location import HFLocation
 from .qa import ensure_extracted, list_tarballs
 from .qa.schemas import ModelAnswerOutput, QuestionOutputData, TaskOutputData
 from .qa.transform import (
@@ -10,6 +11,7 @@ from .serialization import compare_sizes
 from .wandb.summary import normalize_oe_summary
 
 __all__ = [
+    "HFLocation",
     "ModelAnswerOutput",
     "QuestionOutputData",
     "TaskOutputData",
