@@ -8,7 +8,8 @@ import duckdb
 import pandas as pd
 from huggingface_hub import HfApi, hf_hub_download
 
-from dr_ingest.configs import AuthSettings, Paths
+from dr_ingest.configs.auth import AuthSettings
+from dr_ingest.configs.paths import Paths
 
 from .location import HFLocation
 

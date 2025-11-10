@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from dr_ingest import HFLocation
+from dr_ingest.hf import HFLocation
 from dr_ingest.utils.display import add_marimo_display
 
 

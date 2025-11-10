@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import math
+from collections.abc import Callable
 
 import multiprocess as mp
 from more_itertools import chunked
 
 
-def get_chunk_setup(
-    len_input: int, num_cores: int | None = None
-) -> tuple[int, int]:
+def get_chunk_setup(len_input: int, num_cores: int | None = None) -> tuple[int, int]:
     if num_cores is None:
         num_cores = mp.cpu_count()
     if len_input == 0:

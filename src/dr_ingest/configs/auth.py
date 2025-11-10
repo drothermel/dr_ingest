@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 
-from pydantic import BaseModel, Literal
+from pydantic import BaseModel
 
 from dr_ingest.utils import add_marimo_display
 

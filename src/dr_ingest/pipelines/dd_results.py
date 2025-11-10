@@ -12,8 +12,8 @@ from dr_ingest.normalization import (
     normalize_ds_str,
     normalize_tokens,
 )
-from dr_ingest.parse import parse_sl_setup_to_config
 from dr_ingest.parallel import list_merge, parallel_process, set_merge
+from dr_ingest.parse import parse_sl_setup_to_config
 
 SCALING_LAW_MACRO_FILENAME = "macro_avg-00000-of-00001.parquet"
 SCALING_LAW_FIT_FILENAME = "scaling_law_fit-00000-of-00001.parquet"
@@ -38,7 +38,9 @@ def dict_list_to_all_keys(dicts: list[dict[str, Any]]) -> set[str]:
 def make_struct_dtype(keys: list[str], field_types: list[pl.DataType]) -> pl.Struct:
     """Build a Polars struct dtype for the provided keys."""
 
-    return pl.Struct([pl.Field(key, dtype) for key, dtype in zip(keys, field_types, strict=False)])
+    return pl.Struct(
+        [pl.Field(key, dtype) for key, dtype in zip(keys, field_types, strict=False)]
+    )
 
 
 def parse_dd_results_train(df: pl.DataFrame) -> pl.DataFrame:
@@ -48,7 +50,9 @@ def parse_dd_results_train(df: pl.DataFrame) -> pl.DataFrame:
     tm_dicts = parallel_process(train_metrics, str_list_to_dicts, list_merge)
     tm_keys = parallel_process(tm_dicts, dict_list_to_all_keys, set_merge)
     tm_dtype = make_struct_dtype(tm_keys, [pl.Float64] * len(tm_keys))
-    return df.drop("metrics").with_columns(pl.Series("metrics", tm_dicts, dtype=tm_dtype))
+    return df.drop("metrics").with_columns(
+        pl.Series("metrics", tm_dicts, dtype=tm_dtype)
+    )
 
 
 def parse_train_df(df: pl.DataFrame) -> pl.DataFrame:
@@ -90,15 +94,25 @@ def parse_train_df(df: pl.DataFrame) -> pl.DataFrame:
                 ),
                 uncond_correct_prob=pl.struct(
                     raw=pl.col("metrics").struct.field("uncond_correct_prob"),
-                    per_token=pl.col("metrics").struct.field("uncond_correct_prob_per_token"),
-                    per_char=pl.col("metrics").struct.field("uncond_correct_prob_per_char"),
+                    per_token=pl.col("metrics").struct.field(
+                        "uncond_correct_prob_per_token"
+                    ),
+                    per_char=pl.col("metrics").struct.field(
+                        "uncond_correct_prob_per_char"
+                    ),
                 ),
                 norm_correct_prob=pl.struct(
                     raw=pl.col("metrics").struct.field("norm_correct_prob"),
-                    per_token=pl.col("metrics").struct.field("norm_correct_prob_per_token"),
-                    per_char=pl.col("metrics").struct.field("norm_correct_prob_per_char"),
+                    per_token=pl.col("metrics").struct.field(
+                        "norm_correct_prob_per_token"
+                    ),
+                    per_char=pl.col("metrics").struct.field(
+                        "norm_correct_prob_per_char"
+                    ),
                 ),
-                bits_per_byte_correct=pl.col("metrics").struct.field("bits_per_byte_corr"),
+                bits_per_byte_correct=pl.col("metrics").struct.field(
+                    "bits_per_byte_corr"
+                ),
                 primary_metric=pl.col("metrics").struct.field("primary_metric"),
             ).alias("metrics_struct"),
         )
@@ -195,7 +209,9 @@ def extract_true_metrics(col_list: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 def extract_two_step_preds(col_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
     loss_preds: defaultdict[tuple[Any, Any, Any], dict[str, Any]] = defaultdict(dict)
-    loss_to_metric_preds: defaultdict[tuple[Any, Any, Any], dict[str, Any]] = defaultdict(dict)
+    loss_to_metric_preds: defaultdict[tuple[Any, Any, Any], dict[str, Any]] = (
+        defaultdict(dict)
+    )
     metric_preds: defaultdict[tuple[Any, Any, Any], dict[str, Any]] = defaultdict(dict)
     configs: dict[tuple[Any, Any, Any], dict[str, Any]] = {}
     for mapping in col_list:
@@ -214,7 +230,9 @@ def extract_two_step_preds(col_list: list[dict[str, Any]]) -> list[dict[str, Any
                 "recipe": eid[1],
                 "fit_config": cfg,
                 "pred_task_losses": extract_metric_struct(loss_preds[eid]),
-                "pred_task_loss_to_metrics": extract_metric_struct(loss_to_metric_preds[eid]),
+                "pred_task_loss_to_metrics": extract_metric_struct(
+                    loss_to_metric_preds[eid]
+                ),
                 "pred_task_metrics": extract_metric_struct(metric_preds[eid]),
             }
         )
