@@ -19,6 +19,8 @@ __all__ = [
     "upload_file_to_hf",
 ]
 
+type TablePath = str | Path
+
 
 def upload_file_to_hf(
     local_path: str | Path,
@@ -58,13 +60,14 @@ def query_data_from_hf(
 ) -> dict[str, pd.DataFrame]:
     """Load tables from a Hugging Face dataset as Pandas DataFrames."""
     if connection is None:
-        return download_tables_from_hf(
+        table_paths = download_tables_from_hf(
             hf_loc=hf_loc,
             filepaths=filepaths,
-            target_dir=target_dir,
+            local_dir=target_dir,
             hf_token=hf_token,
             force_download=force_download,
         )
+        return {name: pd.read_parquet(path) for name, path in table_paths.items()}
     return query_with_duckdb(
         hf_loc=hf_loc,
         connection=connection,
@@ -98,26 +101,26 @@ def download_tables_from_hf(
     hf_loc: HFLocation,
     *,
     filepaths: list[str | Path] | None = None,
-    target_dir: Path | None = None,
+    local_dir: Path | str | None = None,
     hf_token: str | None = None,
     force_download: bool = False,
-) -> dict[str, pd.DataFrame]:
+) -> dict[str, TablePath]:
     """Download tables directly from Hugging Face storage."""
     resolved_paths = hf_loc.resolve_filepaths(extra_paths=filepaths)
     token = AuthSettings().resolve("hf", hf_token)
 
-    target_dir = target_dir or Paths().data_cache_dir
-    target_dir.mkdir(parents=True, exist_ok=True)
+    local_dir = Path(local_dir or Paths().data_cache_dir)
+    local_dir.mkdir(parents=True, exist_ok=True)
 
-    tables: dict[str, pd.DataFrame] = {}
+    tables: dict[str, TablePath] = {}
     for filepath in resolved_paths:
         local_path = hf_hub_download(
             repo_id=hf_loc.repo_id,
             filename=filepath,
             repo_type=hf_loc.repo_type,
             token=token,
-            local_dir=str(target_dir),
+            local_dir=str(local_dir),
             force_download=force_download,
         )
-        tables[Path(filepath).stem] = pd.read_parquet(local_path)
+        tables[Path(filepath).stem] = local_path
     return tables

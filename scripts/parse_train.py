@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import argparse
-import os
-import time
 from pathlib import Path
 
 import pandas as pd
 import polars as pl
+import typer
+from pydantic import Undefined
 
-from dr_ingest.configs import DataDecideConfig, ParsedSourceConfig, Paths
-from dr_ingest.hf import HFLocation, download_tables_from_hf, upload_file_to_hf
+from dr_ingest.configs import (
+    DataDecideConfig,
+    DataDecideSourceConfig,
+    ParsedSourceConfig,
+    Paths,
+)
+from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
+
+app = typer.Typer()
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,78 +42,102 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def upload_parquet_to_hf(local_path: Path, hf_loc: HFLocation) -> None:
-    if not local_path.exists():
-        raise FileNotFoundError(f"Parquet file {local_path} does not exist for upload.")
-    print(f"Uploading {local_path} to huggingface {hf_loc}")
-    start = time.time()
-    upload_file_to_hf(
-        local_path=local_path,
-        hf_loc=hf_loc,
-    )
-    elapsed = time.time() - start
-    print(f"Upload completed in {elapsed:.2f} seconds.")
+def resolve_local_datadecide_filepaths(
+    *,
+    paths: Paths | None = None,
+    source_config: DataDecideSourceConfig | None = None,
+) -> list[str]:
+    paths = paths or Paths()
+    source_cfg = source_config or DataDecideSourceConfig()
+
+    return [
+        f"{paths.data_cache_dir}/{fp}"
+        for fp in source_cfg.results_hf.resolve_filepaths()
+    ]
 
 
-def main() -> None:
-    args = parse_args()
-    paths = Paths()
-
-    dd_cfg = DataDecideConfig()
-    dd_source_hf_loc = dd_cfg.source_config.results_hf
-
-    parsed_cfg = ParsedSourceConfig()
+def resolve_parsed_output_path(
+    *,
+    paths: Paths | None = None,
+    parsed_config: ParsedSourceConfig | None = None,
+) -> Path:
+    paths = paths or Paths()
+    parsed_cfg = parsed_config or ParsedSourceConfig()
     parsed_hf_loc = parsed_cfg.pretrain
     results_filename = parsed_hf_loc.get_the_single_filepath()
-
     output_path = Path(paths.data_cache_dir / results_filename)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    if args.upload_only:
-        if not output_path.exists():
-            raise FileNotFoundError(
-                f"Output file {output_path} not found; cannot upload-only."
-            )
-        upload_parquet_to_hf(output_path, dd_source_hf_loc)
-        return
+    return output_path
 
-    filepaths = dd_source_hf_loc.filepaths or []
-    if not filepaths:
-        raise ValueError("DataDecide config missing train shard filepaths.")
 
-    tables = download_tables_from_hf(
-        hf_loc=dd_source_hf_loc,
-        target_dir=paths.data_cache_dir,
-        force_download=args.force,
+def validate_and_merge_tables(expected_paths: list[str]) -> pd.DataFrame:
+    shard_dfs: list[pd.DataFrame] = []
+    for path in expected_paths:
+        if not Path(path).exists():
+            raise FileNotFoundError(f"Missing downloaded shard for {path}")
+        shard_dfs.append(pd.read_parquet(path))
+    return pd.concat(shard_dfs, ignore_index=True)
+
+
+@app.command()
+def download(
+    force: bool = False,
+    data_cache_dir: str | None = None,
+) -> None:
+    """Download raw Data Decide Results from HF to Local"""
+    paths = Paths(data_cache_dir=data_cache_dir or Undefined)  # type: ignore
+    dd_cfg = DataDecideConfig()
+    dd_source_hf_loc = dd_cfg.source_config.results_hf
+    table_paths = download_tables_from_hf(
+        dd_source_hf_loc,
+        local_dir=paths.data_cache_dir,
+        force_download=force,
     )
+    print(f">> Downloaded tables: {table_paths} to {paths.data_cache_dir}")
 
-    shard_frames_pd: list[pd.DataFrame] = []
-    print("Loaded shards:")
-    for relative_path in filepaths:
-        stem = Path(relative_path).stem
-        frame = tables.get(stem)
-        if frame is None:
-            raise KeyError(f"Missing downloaded shard for {relative_path}")
-        shard_frames_pd.append(frame)
-        print(f"- {relative_path}: {len(frame)} rows")
 
-    combined_pd = pd.concat(shard_frames_pd, ignore_index=True)
-    combined_pl = pl.from_pandas(combined_pd)
-    parsed_pl = parse_train_df(combined_pl)
-    parsed = parsed_pl.to_pandas()
+@app.command()
+def parse(
+    force: bool = False,
+    data_cache_dir: str | None = None,
+) -> None:
+    """Parse already downloaded Data Decide Results"""
+    paths = Paths(data_cache_dir=data_cache_dir or Undefined)  # type: ignore
+    source_filepaths = resolve_local_datadecide_filepaths(paths=paths)
+    output_path = resolve_parsed_output_path(paths=paths)
 
-    if output_path.exists() and not args.force:
-        raise FileExistsError(
-            f"Output file {output_path} already exists. Use --force to overwrite."
+    # Load and parse the tables
+    source_df = validate_and_merge_tables(source_filepaths)
+    parsed_df = (parse_train_df(pl.from_pandas(source_df))).to_pandas()
+    parsed_df.to_parquet(output_path, index=False)
+    print(f">> Wrote parsed train results to {output_path}")
+
+
+@app.command()
+def upload(
+    data_cache_dir: str | None = None,
+) -> None:
+    """Upload parsed Data Decide Results from local to HF"""
+    paths = Paths(data_cache_dir=data_cache_dir or Undefined)  # type: ignore
+    parsed_pretrain_loc = ParsedSourceConfig().pretrain
+    output_path = resolve_parsed_output_path(paths=paths)
+    if not output_path.exists():
+        raise FileNotFoundError(
+            f"Output file {output_path} not found; cannot upload-only."
         )
-    parsed.to_parquet(output_path, index=False)
-    print(
-        f"Wrote parsed train results to {output_path} "
-        f"({parsed.shape[0]} rows, {parsed.shape[1]} columns)."
-    )
+    print(f">> Upload Only: {output_path} to {parsed_pretrain_loc}")
+    upload_file_to_hf(local_path=output_path, hf_loc=parsed_pretrain_loc)
 
-    if args.upload:
-        upload_parquet_to_hf(output_path, parsed_hf_loc)
+
+@app.command()
+def full_pipeline(
+    force: bool = False,
+    data_cache_dir: str | None = None,
+) -> None:
+    download(force, data_cache_dir)
+    parse(force, data_cache_dir)
+    upload(data_cache_dir)
 
 
 if __name__ == "__main__":
-    main()
+    app()

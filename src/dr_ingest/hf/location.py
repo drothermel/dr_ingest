@@ -142,11 +142,15 @@ class HFLocation(BaseModel):
     def resolve_filepaths(
         self,
         extra_paths: list[str | Path] | None = None,
+        required: bool = True,
     ) -> list[str]:
-        return [
+        paths = [
             *(self.filepaths or []),
             *[self.norm_posix(p) for p in extra_paths or []],
         ]
+        if required and not paths:
+            raise ValueError("No filepaths found")
+        return paths
 
     def get_path_uri(self, path: str | Path) -> HFResource:
         """URI to reference the file in python APIs."""
