@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import time
 from pathlib import Path
 
+import pandas as pd
 import polars as pl
 from dotenv import load_dotenv
-from huggingface_hub import HfFileSystem
 
-from dr_ingest import HFLocation
 from dr_ingest.configs import DataDecideConfig, Paths
-from dr_ingest.hf.hf_upload import upload_file_to_hf
+from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 
@@ -36,44 +34,6 @@ def parse_args() -> argparse.Namespace:
         help="Skip parsing and only upload the existing output parquet.",
     )
     return parser.parse_args()
-
-
-def download_train_shards(
-    destination: Path,
-    redownload: bool,
-    hf_location: HFLocation,
-) -> list[Path]:
-    destination.mkdir(parents=True, exist_ok=True)
-    fs = HfFileSystem()
-    filepaths = hf_location.filepaths or []
-    if not filepaths:
-        raise ValueError(
-            "HF location must include explicit filepaths for train shard download."
-        )
-
-    local_paths: list[Path] = []
-    for filepath in filepaths:
-        filename = Path(filepath).name
-        local_path = destination / filename
-        remote_path = hf_location.get_path_uri(filepath)
-        if local_path.exists() and not redownload:
-            print(f"Skipping download for {filename} (already exists).")
-        else:
-            print(f"Downloading {remote_path} -> {local_path}")
-            with fs.open(remote_path, "rb") as src, local_path.open("wb") as dst:
-                shutil.copyfileobj(src, dst)
-        local_paths.append(local_path)
-    return local_paths
-
-
-def read_shards(
-    file_paths: list[Path],
-) -> tuple[list[Path], list[pl.DataFrame], pl.DataFrame]:
-    if not file_paths:
-        raise FileNotFoundError("No train shard paths provided for parsing.")
-    shard_frames = [pl.read_parquet(path) for path in file_paths]
-    combined = pl.concat(shard_frames, how="vertical")
-    return file_paths, shard_frames, combined
 
 
 def upload_parquet_to_hf(local_path: Path) -> None:
@@ -118,26 +78,40 @@ def main() -> None:
         upload_parquet_to_hf(output_path)
         return
 
-    shard_paths = download_train_shards(
-        paths.data_cache_dir,
-        args.force,
-        dd_cfg.source_config.results_hf,
-    )
-    shard_paths, shard_frames, combined = read_shards(shard_paths)
-    print("Loaded shards:")
-    for path, frame in zip(shard_paths, shard_frames, strict=False):
-        print(f"- {path.name}: {frame.shape[0]} rows")
+    results_location = dd_cfg.source_config.results_hf
+    filepaths = results_location.filepaths or []
+    if not filepaths:
+        raise ValueError("DataDecide config missing train shard filepaths.")
 
-    parsed = parse_train_df(combined)
+    tables = download_tables_from_hf(
+        hf_loc=results_location,
+        target_dir=paths.data_cache_dir,
+        force_download=args.force,
+    )
+
+    shard_frames_pd: list[pd.DataFrame] = []
+    print("Loaded shards:")
+    for relative_path in filepaths:
+        stem = Path(relative_path).stem
+        frame = tables.get(stem)
+        if frame is None:
+            raise KeyError(f"Missing downloaded shard for {relative_path}")
+        shard_frames_pd.append(frame)
+        print(f"- {relative_path}: {len(frame)} rows")
+
+    combined_pd = pd.concat(shard_frames_pd, ignore_index=True)
+    combined_pl = pl.from_pandas(combined_pd)
+    parsed_pl = parse_train_df(combined_pl)
+    parsed = parsed_pl.to_pandas()
 
     if output_path.exists() and not args.force:
         raise FileExistsError(
             f"Output file {output_path} already exists. Use --force to overwrite."
         )
-    parsed.write_parquet(output_path)
+    parsed.to_parquet(output_path, index=False)
     print(
         f"Wrote parsed train results to {output_path} "
-        f"({parsed.height} rows, {parsed.width} columns)."
+        f"({parsed.shape[0]} rows, {parsed.shape[1]} columns)."
     )
 
     if args.upload:
