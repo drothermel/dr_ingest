@@ -44,8 +44,8 @@ class Paths(BaseModel):
 
     # Actually used paths, repo_root and data_cache_dir must exist
     repo_root: ExistingPath = Field(
-        default_factory=lambda data: data["repos_dir"] / "dr_marimo"
+        default_factory=lambda data: data["repos_dir"] / "dr_ingest"
     )
     data_cache_dir: ExistingPath = Field(
-        default_factory=lambda data: data["data_dir"] / "dr_marimo" / "cache"
+        default_factory=lambda data: data["data_dir"] / "cache"
     )
