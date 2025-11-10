@@ -9,6 +9,7 @@ from pathlib import Path
 import polars as pl
 from dotenv import load_dotenv
 
+from dr_ingest.configs import DataDecideConfig, Paths
 from dr_ingest.hf_upload import upload_file_to_hf
 from dr_ingest.pipelines.dd_results import parse_train_df
 from dr_ingest.raw_download import (
@@ -29,26 +30,9 @@ def parse_args() -> argparse.Namespace:
         description="Parse DD train shards into a consolidated parquet dataset."
     )
     parser.add_argument(
-        "--source-dir",
-        type=Path,
-        default=DEFAULT_SOURCE_DIR,
-        help="Local directory where raw train shards will be stored.",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=DEFAULT_OUTPUT_PATH,
-        help="Destination parquet path for consolidated train results.",
-    )
-    parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite the output file if it already exists.",
-    )
-    parser.add_argument(
-        "--redownload",
-        action="store_true",
-        help="Force redownload of train shards even if they already exist.",
+        help="Redownload and overwrite the output file if it already exists.",
     )
     parser.add_argument(
         "--upload",
@@ -115,10 +99,15 @@ def upload_parquet_to_hf(local_path: Path) -> None:
 
 
 def main() -> None:
+    # Old Config System
     load_dotenv()
     args = parse_args()
-    source_dir = args.source_dir.expanduser()
-    output_path = args.output.expanduser()
+
+    # New Config System
+    paths = Paths()
+    dd_cfg = DataDecideConfig()
+
+    output_path = Path(paths.data_cache_dir / dd_cfg.results_filename)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if args.upload_only:
         if not output_path.exists():
@@ -128,7 +117,7 @@ def main() -> None:
         upload_parquet_to_hf(output_path)
         return
 
-    shard_paths = download_train_shards(source_dir, args.redownload)
+    shard_paths = download_train_shards(paths.data_cache_dir, args.force)
     shard_paths, shard_frames, combined = read_shards(shard_paths)
     print("Loaded shards:")
     for path, frame in zip(shard_paths, shard_frames, strict=False):
@@ -140,7 +129,6 @@ def main() -> None:
         raise FileExistsError(
             f"Output file {output_path} already exists. Use --force to overwrite."
         )
-
     parsed.write_parquet(output_path)
     print(
         f"Wrote parsed train results to {output_path} "
