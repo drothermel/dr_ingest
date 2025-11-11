@@ -30,7 +30,7 @@ class DataDecideSourceConfig(BaseModel):
     scaling_laws_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
             org="allenai",
-            repo_name="DataDecide-eval-scaling-laws",
+            repo_name="DataDecide-eval-results",
             filepaths=[
                 "data/scaling_law_fit-00000-of-00001.parquet",
             ],
@@ -39,7 +39,7 @@ class DataDecideSourceConfig(BaseModel):
     macro_avg_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
             org="allenai",
-            repo_name="DataDecide-eval-macro-avg",
+            repo_name="DataDecide-eval-results",
             filepaths=[
                 "data/macro_avg-00000-of-00001.parquet",
             ],
