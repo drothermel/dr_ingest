@@ -19,6 +19,7 @@ def parse_train_df(
     df: pd.DataFrame, config: DataDecideConfig | None = None
 ) -> pd.DataFrame:
     cfg = config or DataDecideConfig()
+
     return (
         df.pipe(parse_metrics_col, config=cfg)
         .assign(
@@ -31,7 +32,8 @@ def parse_train_df(
             params_numeric=df["params"].apply(lambda x: parse_size_string(x)),
         )
         .pipe(add_task_group, config=cfg)
-        .drop(columns=["chinchilla"])
+        .drop(columns=["chinchilla", *cfg.metrics_cols_to_drop])
+        .sort_values(by=["params_numeric", "step"])
         .reset_index(drop=True)
     )
 

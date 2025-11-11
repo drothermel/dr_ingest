@@ -69,37 +69,6 @@ class DataDecideConfig(BaseModel):
     acc_baseline_col: Literal["acc_baseline"] = "acc_baseline"
     prob_baseline_col: Literal["prob_baseline"] = "prob_baseline"
 
-    ## Metric Column Remapping (raw -> normalized)
-    metric_column_renames: dict[str, str] = Field(
-        default_factory=lambda: {
-            "acc_raw": "metrics_acc_raw",
-            "acc_per_token": "metrics_acc_per_token",
-            "acc_per_char": "metrics_acc_per_char",
-            "acc_per_byte": "metrics_acc_per_byte",
-            "acc_uncond": "metrics_acc_uncond",
-            "sum_logits_corr": "metrics_sum_logits_correct_raw",
-            "logits_per_token_corr": "metrics_sum_logits_correct_per_token",
-            "logits_per_char_corr": "metrics_sum_logits_correct_per_char",
-            "correct_prob": "metrics_correct_prob_raw",
-            "correct_prob_per_token": "metrics_correct_prob_per_token",
-            "correct_prob_per_char": "metrics_correct_prob_per_char",
-            "margin": "metrics_margin_raw",
-            "margin_per_token": "metrics_margin_per_token",
-            "margin_per_char": "metrics_margin_per_char",
-            "total_prob": "metrics_total_prob_raw",
-            "total_prob_per_token": "metrics_total_prob_per_token",
-            "total_prob_per_char": "metrics_total_prob_per_char",
-            "uncond_correct_prob": "metrics_uncond_correct_prob_raw",
-            "uncond_correct_prob_per_token": "metrics_uncond_correct_prob_per_token",
-            "uncond_correct_prob_per_char": "metrics_uncond_correct_prob_per_char",
-            "norm_correct_prob": "metrics_norm_correct_prob_raw",
-            "norm_correct_prob_per_token": "metrics_norm_correct_prob_per_token",
-            "norm_correct_prob_per_char": "metrics_norm_correct_prob_per_char",
-            "bits_per_byte_corr": "metrics_bits_per_byte_correct",
-            "primary_metric": "metrics_primary_metric",
-        }
-    )
-
     ## Task Group Mapping
     task_group_col: Literal["task_group"] = "task_group"
     task_group_map: dict[str, str] = Field(
@@ -123,6 +92,52 @@ class DataDecideConfig(BaseModel):
             "arc_easy": 0.25,
             "arc_challenge": 0.2,
         }
+    )
+
+    ## Metric Column Remapping (raw -> normalized)
+    metric_column_renames: dict[str, str] = Field(
+        default_factory=lambda: {
+            "acc_raw": "metrics_acc_raw",
+            "acc_per_token": "metrics_acc_per_token",
+            "acc_per_char": "metrics_acc_per_char",
+            "acc_per_byte": "metrics_acc_per_byte",
+            "acc_uncond": "metrics_acc_uncond",
+            "sum_logits_corr": "metrics_sum_logits_correct_raw",
+            "logits_per_token_corr": "metrics_sum_logits_correct_per_token",
+            "logits_per_char_corr": "metrics_sum_logits_correct_per_char",
+            "logits_per_byte_corr": "metrics_sum_logits_correct_per_byte",
+            "correct_prob": "metrics_correct_prob_raw",
+            "correct_prob_per_token": "metrics_correct_prob_per_token",
+            "correct_prob_per_char": "metrics_correct_prob_per_char",
+            "margin": "metrics_margin_raw",
+            "margin_per_token": "metrics_margin_per_token",
+            "margin_per_char": "metrics_margin_per_char",
+            "total_prob": "metrics_total_prob_raw",
+            "total_prob_per_token": "metrics_total_prob_per_token",
+            "total_prob_per_char": "metrics_total_prob_per_char",
+            "uncond_correct_prob": "metrics_uncond_correct_prob_raw",
+            "uncond_correct_prob_per_token": "metrics_uncond_correct_prob_per_token",
+            "uncond_correct_prob_per_char": "metrics_uncond_correct_prob_per_char",
+            "uncond_total_prob": "metrics_uncond_total_prob_raw",
+            "norm_correct_prob": "metrics_norm_correct_prob_raw",
+            "norm_correct_prob_per_token": "metrics_norm_correct_prob_per_token",
+            "norm_correct_prob_per_char": "metrics_norm_correct_prob_per_char",
+            "bits_per_byte_corr": "metrics_bits_per_byte_correct",
+            "primary_metric": "metrics_primary_metric",
+        }
+    )
+
+    metrics_cols_to_drop: list[str] = Field(
+        default_factory=lambda: [
+            "no_answer",  # Always null or zero
+            # Not meaningful in aggregate
+            "predicted_index_raw",
+            "predicted_index_per_token",
+            "predicted_index_per_char",
+            "predicted_index_per_byte",
+            "predicted_index_uncond",
+            "correct_choice",
+        ]
     )
 
     ## Ordering Configs
