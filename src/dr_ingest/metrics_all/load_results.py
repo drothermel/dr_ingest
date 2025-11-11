@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-import srsly
 
 from dr_ingest.utils.io import iter_file_glob_from_roots
 
