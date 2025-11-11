@@ -14,6 +14,8 @@ class DataDecideSourceConfig(BaseModel):
     perplexity_metrics_csv: HttpUrl = HttpUrl(
         "https://github.com/allenai/DataDecide/blob/main/perplexity_metrics_by_group.csv"
     )
+    local_path_include_org: bool = True
+    local_path_include_repo: bool = True
 
     results_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
