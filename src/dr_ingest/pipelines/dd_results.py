@@ -4,7 +4,7 @@ import ast
 
 import pandas as pd
 
-from dr_ingest.configs.datadecide import DataDecideConfig
+from dr_ingest.datadec.datadecide import DataDecideConfig
 from dr_ingest.utils import group_col_by_prefix
 
 __all__ = [

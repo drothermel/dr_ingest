@@ -6,10 +6,10 @@ import pandas as pd
 import typer
 
 from dr_ingest.configs import (
-    DataDecideSourceConfig,
     ParsedSourceConfig,
     Paths,
 )
+from dr_ingest.datadec.datadecide import DataDecideSourceConfig
 from dr_ingest.hf.io import (
     cached_download_tables_from_hf,
     get_tables_from_cache,

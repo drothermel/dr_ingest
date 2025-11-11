@@ -4,7 +4,7 @@ from typing import Any
 
 import polars as pl
 
-from dr_ingest.configs import DataDecideSourceConfig
+from dr_ingest.datadec.datadecide import DataDecideSourceConfig
 from dr_ingest.datadec.recipes import DataDecideRecipeConfig
 
 __all__ = ["parse_scaling_law_dir"]
