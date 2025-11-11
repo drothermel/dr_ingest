@@ -164,31 +164,21 @@ def _extract_metric_struct(metrics_dict: dict[str, Any]) -> dict[str, Any]:
     """Collect the raw/per-token/per-char variants for a metric family."""
 
     return {
-        "accuracy": {
-            "raw": metrics_dict.get("acc_raw"),
-            "per_char": metrics_dict.get("acc_per_char"),
-            "per_token": metrics_dict.get("acc_per_token"),
-        },
-        "margin": {
-            "raw": metrics_dict.get("margin"),
-            "per_char": metrics_dict.get("margin_per_char"),
-            "per_token": metrics_dict.get("margin_per_token"),
-        },
-        "norm_correct_prob": {
-            "raw": metrics_dict.get("norm_correct_prob"),
-            "per_char": metrics_dict.get("norm_correct_prob_per_char"),
-            "per_token": metrics_dict.get("norm_correct_prob_per_token"),
-        },
-        "total_prob": {
-            "raw": metrics_dict.get("total_prob"),
-            "per_char": metrics_dict.get("total_prob_per_char"),
-            "per_token": metrics_dict.get("total_prob_per_token"),
-        },
-        "correct_prob": {
-            "raw": metrics_dict.get("correct_prob"),
-            "per_char": metrics_dict.get("correct_prob_per_char"),
-            "per_token": metrics_dict.get("correct_prob_per_token"),
-        },
+        "acc_raw": metrics_dict.get("acc_raw"),
+        "acc_per_char": metrics_dict.get("acc_per_char"),
+        "acc_per_token": metrics_dict.get("acc_per_token"),
+        "margin_raw": metrics_dict.get("margin"),
+        "margin_per_char": metrics_dict.get("margin_per_char"),
+        "margin_per_token": metrics_dict.get("margin_per_token"),
+        "norm_correct_prob_raw": metrics_dict.get("norm_correct_prob"),
+        "norm_correct_prob_per_char": metrics_dict.get("norm_correct_prob_per_char"),
+        "norm_correct_prob_per_token": metrics_dict.get("norm_correct_prob_per_token"),
+        "total_prob_raw": metrics_dict.get("total_prob"),
+        "total_prob_per_char": metrics_dict.get("total_prob_per_char"),
+        "total_prob_per_token": metrics_dict.get("total_prob_per_token"),
+        "correct_prob_raw": metrics_dict.get("correct_prob"),
+        "correct_prob_per_char": metrics_dict.get("correct_prob_per_char"),
+        "correct_prob_per_token": metrics_dict.get("correct_prob_per_token"),
     }
 
 
