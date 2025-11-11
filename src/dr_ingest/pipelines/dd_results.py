@@ -4,7 +4,7 @@ import ast
 
 import pandas as pd
 
-from dr_ingest.configs.datadecide import DataDecideConfig
+from dr_ingest.datadec.datadecide import DataDecideConfig
 from dr_ingest.utils import group_col_by_prefix
 
 __all__ = [
@@ -23,6 +23,9 @@ def parse_train_df(
     return (
         df.pipe(parse_metrics_col, config=cfg)
         .assign(
+            recipe=df["data"].apply(
+                lambda x: cfg.recipe_config.normalized_recipe_map.get(x, x)
+            ),
             tokens_millions=df["tokens"].apply(lambda x: x / 1e6),
             compute_e15=df["compute"].apply(lambda x: x / 1e15),
             acc_baseline=df["task"].apply(

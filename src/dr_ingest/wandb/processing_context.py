@@ -5,13 +5,12 @@ from typing import Any
 import pandas as pd
 from attrs import define
 
+from dr_ingest.datadec.recipes import DataDecideRecipeConfig
 from dr_ingest.normalization import CONVERSION_MAP
 from dr_ingest.wandb.config import (
+    IngestWandbDefaults,
     load_column_renames,
-    load_defaults,
     load_fill_from_config_map,
-    load_recipe_columns,
-    load_recipe_mapping,
     load_summary_field_map,
     load_value_converter_map,
 )
@@ -26,8 +25,8 @@ RUN_TYPE_HOOKS: dict[str, Any] = {
 class ProcessingContext:
     column_renames: dict[str, str]
     defaults: dict[str, Any]
-    recipe_mapping: dict[str, str]
-    recipe_columns: list[str]
+    recipe_cfg: DataDecideRecipeConfig
+    target_cols_with_recipe_strs: list[str]
     config_field_mapping: dict[str, str]
     summary_field_mapping: dict[str, str]
     value_converter_map: dict[str, str]
@@ -42,9 +41,7 @@ class ProcessingContext:
         config_field_mapping_override: dict[str, str] | None = None,
         summary_field_mapping_override: dict[str, str] | None = None,
     ) -> ProcessingContext:
-        defaults = dict(load_defaults())
-        if overrides:
-            defaults.update(overrides)
+        defaults_dict = IngestWandbDefaults(**(overrides or {})).model_dump()
 
         column_renames = dict(load_column_renames())
         if column_renames_override:
@@ -62,9 +59,13 @@ class ProcessingContext:
 
         return cls(
             column_renames=column_renames,
-            defaults=defaults,
-            recipe_mapping=dict(load_recipe_mapping()),
-            recipe_columns=list(load_recipe_columns()),
+            defaults=defaults_dict,
+            recipe_cfg=DataDecideRecipeConfig(),
+            target_cols_with_recipe_strs=[
+                "comparison_model_recipe",
+                "initial_checkpoint_recipe",
+                "ckpt_data",
+            ],
             config_field_mapping=config_field_mapping,
             summary_field_mapping=summary_field_mapping,
             value_converter_map=value_converter_map,
@@ -88,12 +89,18 @@ class ProcessingContext:
         self, frame: pd.DataFrame, columns: list[str] | None = None
     ) -> pd.DataFrame:
         result = frame.copy()
-        target_columns = columns or self.recipe_columns
+        target_columns = columns or self.target_cols_with_recipe_strs
+        norm_cols_set = set(self.recipe_cfg.recipe_order)
+        norm_to_orig_recipe_mapping = {
+            v: k
+            for k, v in self.recipe_cfg.normalized_recipe_map.items()
+            if k in norm_cols_set
+        }
         for column in target_columns:
             if column not in result.columns:
                 continue
             result[column] = result[column].map(
-                lambda value: self.recipe_mapping.get(value, value)
+                lambda value: norm_to_orig_recipe_mapping.get(value, value)
                 if pd.notna(value)
                 else value
             )

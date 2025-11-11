@@ -17,6 +17,7 @@ __all__ = [
     "cached_download_tables_from_hf",
     "get_tables_from_cache",
     "query_hf_with_duckdb",
+    "read_local_parquet_paths",
     "upload_file_to_hf",
 ]
 
@@ -46,7 +47,7 @@ def get_tables_from_cache(
     for fp in local_paths:
         if not Path(fp).exists():
             raise FileNotFoundError(f"Local file not found: {fp}")
-    return _read_local_parquet_paths(local_paths)  # type: ignore
+    return read_local_parquet_paths(local_paths)  # type: ignore
 
 
 def query_hf_with_duckdb(
@@ -101,5 +102,5 @@ def cached_download_tables_from_hf(
     return tables
 
 
-def _read_local_parquet_paths(local_paths: list[Path | str]) -> dict[str, pd.DataFrame]:
+def read_local_parquet_paths(local_paths: list[Path | str]) -> dict[str, pd.DataFrame]:
     return {Path(fp).stem: pd.read_parquet(fp) for fp in local_paths}

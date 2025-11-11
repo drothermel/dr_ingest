@@ -1,9 +1,11 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, computed_field
 
 from dr_ingest.hf.location import HFLocation
 from dr_ingest.utils.display import add_marimo_display
+
+from .recipes import DataDecideRecipeConfig
 
 
 @add_marimo_display()
@@ -59,6 +61,9 @@ class DataDecideSourceConfig(BaseModel):
 class DataDecideConfig(BaseModel):
     source_config: DataDecideSourceConfig = Field(
         default_factory=DataDecideSourceConfig
+    )
+    recipe_config: DataDecideRecipeConfig = Field(
+        default_factory=DataDecideRecipeConfig
     )
 
     ## Downloaded Col Names
@@ -141,36 +146,6 @@ class DataDecideConfig(BaseModel):
     )
 
     ## Ordering Configs
-    recipe_order: tuple[str, ...] = Field(
-        default_factory=lambda: (
-            "dolma17_no_reddit",
-            "dolma17_no_flan",
-            "dolma17_no_code",
-            "dolma17_no_math_code",
-            "c4",
-            "falcon",
-            "falcon_cc",
-            "falcon_cc_qc_20",
-            "falcon_cc_qc_orig_10",
-            "falcon_cc_qc_10",
-            "falcon_cc_qc_tulu_10",
-            "dolma16",
-            "fineweb_pro",
-            "fineweb_edu",
-            "dolma17",
-            "dclm_baseline_25_dolma_75",
-            "dclm_baseline_50_dolma_50",
-            "dclm_baseline_75_dolma_25",
-            "dclm_baseline",
-            "dclm_baseline_qc_fw_10",
-            "dclm_baseline_qc_fw_3",
-            "dclm_baseline_qc_10",
-            "dclm_baseline_qc_20",
-            "dclm_baseline_qc_7_fw3",
-            "dclm_baseline_qc_7_fw2",
-        )
-    )
-
     param_order: tuple[str, ...] = Field(
         default_factory=lambda: (
             "4M",
@@ -199,3 +174,8 @@ class DataDecideConfig(BaseModel):
             "small_aux_3",
         )
     )
+
+    @computed_field
+    @property
+    def recipe_order(self) -> list[str]:
+        return self.recipe_config.recipe_order

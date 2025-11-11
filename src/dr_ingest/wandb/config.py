@@ -6,17 +6,24 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from confection import Config
+from pydantic import BaseModel
 
 if TYPE_CHECKING:  # pragma: no cover
     pass
 
 CONFIG_DIR = Path(__file__).resolve().parents[3] / "configs" / "wandb"
 CONFIG_FILES: tuple[Path, ...] = (
-    CONFIG_DIR / "base.cfg",
     CONFIG_DIR / "patterns.cfg",
     CONFIG_DIR / "processing.cfg",
     CONFIG_DIR / "metrics.cfg",
 )
+
+
+class IngestWandbDefaults(BaseModel):
+    num_finetune_epochs: int = 1
+    initial_checkpoint_steps: str = "main"
+    comparison_metric: str = "pile"
+    comparison_model_recipe: str = "Dolma1.7"
 
 
 def _load_single_config(path: Path) -> Config:
@@ -33,18 +40,6 @@ def load_raw_config() -> Config:
 
 
 @lru_cache(maxsize=1)
-def load_defaults() -> dict[str, str]:
-    cfg = load_raw_config()
-    return cfg["defaults"]
-
-
-@lru_cache(maxsize=1)
-def load_recipe_mapping() -> dict[str, str]:
-    cfg = load_raw_config()
-    return cfg["recipe_mapping"]
-
-
-@lru_cache(maxsize=1)
 def load_pattern_specs() -> Iterable[tuple[str, str, object]]:
     cfg = load_raw_config()
     patterns = cfg["patterns"]
@@ -57,13 +52,6 @@ def load_pattern_specs() -> Iterable[tuple[str, str, object]]:
 def load_column_renames() -> dict[str, str]:
     cfg = load_raw_config()
     return cfg["processing"]["column_renames"]
-
-
-@lru_cache(maxsize=1)
-def load_recipe_columns() -> Iterable[str]:
-    cfg = load_raw_config()
-    columns = cfg["processing"]["recipe_columns"]["columns"]
-    return [str(column) for column in columns]
 
 
 @lru_cache(maxsize=1)
@@ -105,14 +93,11 @@ __all__ = [
     "CONFIG_DIR",
     "CONFIG_FILES",
     "load_column_renames",
-    "load_defaults",
     "load_fill_from_config_map",
     "load_metric_names",
     "load_metric_task_groups",
     "load_pattern_specs",
     "load_raw_config",
-    "load_recipe_columns",
-    "load_recipe_mapping",
     "load_summary_field_map",
     "load_value_converter_map",
 ]

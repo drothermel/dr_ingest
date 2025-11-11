@@ -4,7 +4,8 @@ from pathlib import Path
 
 import typer
 
-from dr_ingest.configs import DataDecideSourceConfig, ParsedSourceConfig, Paths
+from dr_ingest.configs import ParsedSourceConfig, Paths
+from dr_ingest.datadec.datadecide import DataDecideSourceConfig
 from dr_ingest.hf.io import cached_download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_scaling_laws import parse_scaling_law_dir
 
@@ -71,7 +72,7 @@ def full_pipeline(
     data_cache_dir: str | None = None,
 ) -> None:
     download(force, data_cache_dir)
-    parse(force, data_cache_dir)
+    parse(data_cache_dir)
     upload(data_cache_dir)
 
 
