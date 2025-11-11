@@ -23,6 +23,9 @@ def parse_train_df(
     return (
         df.pipe(parse_metrics_col, config=cfg)
         .assign(
+            recipe=df["data"].apply(
+                lambda x: cfg.recipe_config.normalized_recipe_map.get(x, x)
+            ),
             tokens_millions=df["tokens"].apply(lambda x: x / 1e6),
             compute_e15=df["compute"].apply(lambda x: x / 1e15),
             acc_baseline=df["task"].apply(
