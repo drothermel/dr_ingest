@@ -4,10 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import typer
-from pydantic.experimental.missing_sentinel import MISSING
 
 from dr_ingest.configs import (
-    DataDecideConfig,
     DataDecideSourceConfig,
     ParsedSourceConfig,
     Paths,
@@ -20,20 +18,6 @@ from dr_ingest.hf.io import (
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 app = typer.Typer()
-
-
-def resolve_local_datadecide_filepaths(
-    *,
-    paths: Paths | None = None,
-    source_config: DataDecideSourceConfig | None = None,
-) -> list[str]:
-    paths = paths or Paths()
-    source_cfg = source_config or DataDecideSourceConfig()
-
-    return [
-        f"{paths.data_cache_dir}/{fp}"
-        for fp in source_cfg.results_hf.resolve_filepaths()
-    ]
 
 
 def resolve_parsed_output_path(
@@ -61,33 +45,30 @@ def validate_and_merge_tables(expected_paths: list[str]) -> pd.DataFrame:
 
 @app.command()
 def download(
-    force: bool = False,
+    force_download: bool = False,
     data_cache_dir: str | None = None,
 ) -> None:
     """Download raw Data Decide Results from HF to Local"""
-    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
-    dd_cfg = DataDecideConfig()
-    dd_source_hf_loc = dd_cfg.source_config.results_hf
-    table_paths = download_tables_from_hf(
-        dd_source_hf_loc,
+    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    cached_download_tables_from_hf(
+        DataDecideSourceConfig().results_hf,
         local_dir=paths.data_cache_dir,
-        force_download=force,
+        force_download=force_download,
     )
-    print(f">> Downloaded tables: {table_paths} to {paths.data_cache_dir}")
 
 
 @app.command()
 def parse(
-    force: bool = False,
     data_cache_dir: str | None = None,
 ) -> None:
     """Parse already downloaded Data Decide Results"""
-    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
-    source_filepaths = resolve_local_datadecide_filepaths(paths=paths)
+    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
     output_path = resolve_parsed_output_path(paths=paths)
-
-    # Load and parse the tables
-    source_df = validate_and_merge_tables(source_filepaths)
+    source_loc = DataDecideSourceConfig().results_hf
+    source_df = pd.concat(
+        get_tables_from_cache(source_loc, local_dir=paths.data_cache_dir),
+        ignore_index=True,
+    )
     parsed_df = parse_train_df(source_df)
     parsed_df.to_parquet(output_path, index=False)
     print(f">> Wrote parsed train results to {output_path}")
@@ -98,25 +79,25 @@ def upload(
     data_cache_dir: str | None = None,
 ) -> None:
     """Upload parsed Data Decide Results from local to HF"""
-    paths = Paths(data_cache_dir=data_cache_dir or MISSING)  # type: ignore
-    parsed_pretrain_loc = ParsedSourceConfig().pretrain
-    output_path = resolve_parsed_output_path(paths=paths)
-    if not output_path.exists():
+    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    local_parsed_path = resolve_parsed_output_path(paths=paths)
+    if not local_parsed_path.exists():
         raise FileNotFoundError(
-            f"Output file {output_path} not found; cannot upload-only."
+            f"Output file {local_parsed_path} not found; cannot upload-only."
         )
-    print(f">> Upload Only: {output_path} to {parsed_pretrain_loc}")
-    upload_file_to_hf(local_path=output_path, hf_loc=parsed_pretrain_loc)
+    parsed_pretrain_hf_loc = ParsedSourceConfig().pretrain
+    print(f">> Upload Only: {local_parsed_path} to {parsed_pretrain_hf_loc}")
+    upload_file_to_hf(local_parsed_path, parsed_pretrain_hf_loc)
 
 
 @app.command()
 def full_pipeline(
-    force: bool = False,
+    force_download: bool = False,
     data_cache_dir: str | None = None,
 ) -> None:
     """Download, parse, parse and upload Data Decide results"""
-    download(force, data_cache_dir)
-    parse(force, data_cache_dir)
+    download(force_download, data_cache_dir)
+    parse(data_cache_dir)
     upload(data_cache_dir)
 
 
