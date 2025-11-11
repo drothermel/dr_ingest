@@ -87,7 +87,10 @@ def upload(
             f"Output file {local_parsed_path} not found; cannot upload-only."
         )
     parsed_pretrain_hf_loc = ParsedSourceConfig().pretrain
-    print(f">> Upload Only: {local_parsed_path} to {parsed_pretrain_hf_loc}")
+    print(">> Upload Only")
+    print(f" - from: {local_parsed_path}")
+    print(" - to: ")
+    print(parsed_pretrain_hf_loc.model_dump_json(indent=4))
     upload_file_to_hf(local_parsed_path, parsed_pretrain_hf_loc)
 
 

@@ -33,7 +33,7 @@ def upload_file_to_hf(
         path_or_fileobj=str(local_path),
         repo_id=hf_loc.repo_id,
         path_in_repo=hf_loc.get_the_single_filepath(),
-        repo_type=hf_loc.repo_type,
+        repo_type=hf_loc.hf_hub_repo_type,
     )
 
 
@@ -73,8 +73,6 @@ def cached_download_tables_from_hf(
     verbose: bool = True,
 ) -> dict[str, str | Path]:
     """Download tables directly from Hugging Face storage."""
-    if (download_repo_type := hf_loc.repo_type[:-1]) != "dataset":
-        raise ValueError(f"Invalid repo type: {hf_loc.repo_type}")
 
     local_dir = Path(local_dir or Paths().data_cache_dir)
     local_paths = hf_loc.resolve_filepaths(local_dir=local_dir)
@@ -90,7 +88,7 @@ def cached_download_tables_from_hf(
         local_path = hf_hub_download(
             repo_id=hf_loc.repo_id,
             filename=remote_path,
-            repo_type=download_repo_type,
+            repo_type=hf_loc.hf_hub_repo_type,
             token=AuthSettings().resolve("hf", hf_token),
             local_dir=hf_loc.build_local_dir(local_dir),
             force_download=force_download,
