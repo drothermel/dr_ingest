@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from dr_ingest.hf import HFLocation
+from dr_ingest.hf.location import HFLocation
 from dr_ingest.utils import add_marimo_display
 
 

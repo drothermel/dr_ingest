@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from pydantic.experimental.missing_sentinel import MISSING
 
 from dr_ingest.configs import DataDecideSourceConfig, Paths
-from dr_ingest.hf import HFLocation, download_tables_from_hf, upload_file_to_hf
+from dr_ingest.hf.io import cached_download_tables_from_hf, upload_file_to_hf
 from dr_ingest.pipelines.dd_scaling_laws import parse_scaling_law_dir
 
 app = typer.Typer()

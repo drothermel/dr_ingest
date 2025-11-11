@@ -12,7 +12,11 @@ from dr_ingest.configs import (
     ParsedSourceConfig,
     Paths,
 )
-from dr_ingest.hf import download_tables_from_hf, upload_file_to_hf
+from dr_ingest.hf.io import (
+    cached_download_tables_from_hf,
+    get_tables_from_cache,
+    upload_file_to_hf,
+)
 from dr_ingest.pipelines.dd_results import parse_train_df
 
 app = typer.Typer()
