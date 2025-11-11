@@ -69,6 +69,7 @@ def parse(
         get_tables_from_cache(source_loc, local_dir=paths.data_cache_dir),
         ignore_index=True,
     )
+    print(">> Begin parsing, this will take 2min+")
     parsed_df = parse_train_df(source_df)
     parsed_df.to_parquet(output_path, index=False)
     print(f">> Wrote parsed train results to {output_path}")
