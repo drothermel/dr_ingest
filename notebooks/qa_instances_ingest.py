@@ -22,10 +22,13 @@ app = marimo.App(width="columns", app_title="Extract DD Try 1")
 
 @app.cell(column=0)
 def _():
-    import marimo as mo
+    # Keeping: Might be useful if we ever return to instance extraction
     from pathlib import Path
+
+    import marimo as mo
     import srsly
     from cattrs import structure
+
     from dr_ingest.qa import ensure_extracted, list_tarballs
     from dr_ingest.qa.schemas import (
         ModelAnswerOutput,
@@ -35,8 +38,8 @@ def _():
     from dr_ingest.qa.transform import (
         build_file_metadata,
         extract_question_payloads,
-        preview_agg_metrics,
         model_output_keys,
+        preview_agg_metrics,
     )
 
     return (

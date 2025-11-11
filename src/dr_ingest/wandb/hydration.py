@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 import attrs
 import pandas as pd
 
-from dr_ingest.df_ops import (
+from dr_ingest.utils.pandas import (
     apply_row_updates,
     ensure_column,
     force_setter,
     maybe_update_setter,
     require_row_index,
 )
-from dr_ingest.json_utils import safe_load_json
 
 if TYPE_CHECKING:  # pragma: no cover
     from .processing_context import ProcessingContext
@@ -108,6 +108,21 @@ def _collect_stage_updates(
             if value is not None:
                 updates.setdefault(run_id, {})[target_field] = value
     return updates
+
+
+def safe_load_json(payload: Any) -> dict[str, Any] | None:
+    """Load JSON from strings or mappings, returning ``None`` on failure."""
+
+    if payload is None or (isinstance(payload, float) and pd.isna(payload)):
+        return None
+    try:
+        if isinstance(payload, str):
+            return json.loads(payload)
+        if isinstance(payload, dict):
+            return payload
+        return dict(payload)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
 
 
 __all__ = [
