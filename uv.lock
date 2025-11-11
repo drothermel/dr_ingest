@@ -263,7 +263,7 @@ requires-dist = [
     { name = "attrs", specifier = ">=25.4.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "dr-wandb", directory = "../dr_wandb" },
-    { name = "duckdb", specifier = ">=1.4.1" },
+    { name = "duckdb", specifier = "==1.4.1" },
     { name = "fastparquet", specifier = ">=2024.11.0" },
     { name = "huggingface-hub", specifier = ">=1.1.2" },
     { name = "marimo", extras = ["sql"], specifier = "==0.17.7" },

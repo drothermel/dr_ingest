@@ -12,7 +12,7 @@ dependencies = [
     "attrs>=25.4.0",
     "dotenv>=0.9.9",
     "dr-wandb==0.1.2",
-    "duckdb>=1.4.1",
+    "duckdb==1.4.1",
     "fastparquet>=2024.11.0",
     "huggingface-hub>=1.1.2",
     "marimo[sql]==0.17.7",
