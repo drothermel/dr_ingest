@@ -237,6 +237,7 @@ dependencies = [
     { name = "more-itertools" },
     { name = "multiprocess" },
     { name = "pandas" },
+    { name = "polars" },
     { name = "pydantic" },
     { name = "typer" },
 ]
@@ -258,6 +259,7 @@ requires-dist = [
     { name = "more-itertools", specifier = ">=10.8.0" },
     { name = "multiprocess", specifier = ">=0.70.18" },
     { name = "pandas", specifier = ">=2.3.3" },
+    { name = "polars", specifier = ">=1.35.2" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "typer", specifier = ">=0.20.0" },
 ]

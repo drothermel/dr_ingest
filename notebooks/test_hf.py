@@ -37,6 +37,13 @@ def _(dd_cfg, paths):
 
 @app.cell
 def _():
+    parsed_df = pd.read_parquet("/Users/daniellerothermel/drotherm/data/cache/train_results.parquet")
+    parsed_df
+    return
+
+
+@app.cell
+def _():
     mo.md(r"""
     def wandb_load_fxn(**kwargs: Any) -> tuple[list[dict], list[dict]]:
         entity = kwargs.get("entity")
