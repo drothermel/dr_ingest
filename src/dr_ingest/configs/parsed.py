@@ -20,7 +20,10 @@ class ParsedSourceConfig(BaseModel):
             org="drotherm",
             repo_name="dd_parsed",
             filepaths=[
-                "scaling_law_fit.parquet",
+                "macro_avg.parquet",
+                "scaling_law_pred_one_step.parquet",
+                "scaling_law_pred_two_step.parquet",
+                "scaling_law_true.parquet",
             ],
         )
     )
