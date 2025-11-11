@@ -72,7 +72,7 @@ def full_pipeline(
     data_cache_dir: str | None = None,
 ) -> None:
     download(force, data_cache_dir)
-    parse(force, data_cache_dir)
+    parse(data_cache_dir)
     upload(data_cache_dir)
 
 
