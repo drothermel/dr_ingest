@@ -24,19 +24,17 @@ def parse_scaling_law_dir(source_dir: Path) -> dict[str, pl.DataFrame]:
         Dictionary including the macro-average dataframe and parsed scaling-law outputs.
     """
     source_cfg = DataDecideSourceConfig()
-    macro_pathname = source_cfg.macro_avg_hf.get_the_single_filepath()
-    fit_pathname = source_cfg.scaling_laws_hf.get_the_single_filepath()
-    macro_path = (source_dir / macro_pathname).resolve()
-    fit_path = (source_dir / fit_pathname).resolve()
+    macro_path = source_cfg.macro_avg_hf.get_the_single_filepath(local_dir=source_dir)
+    fit_path = source_cfg.scaling_laws_hf.get_the_single_filepath(local_dir=source_dir)
 
-    if missing := [path for path in (macro_path, fit_path) if not path.exists()]:
+    if missing := [path for path in (macro_path, fit_path) if not Path(path).exists()]:
         raise FileNotFoundError(f"Missing scaling-law parquet files: {missing}")
 
     macro_df = pl.read_parquet(macro_path)
     scaling_law_df = pl.read_parquet(fit_path)
-    outputs = parse_sl_results(scaling_law_df)
-    outputs["macro_avg_raw"] = macro_df
-    return outputs
+    output_paths_to_dfs = parse_sl_results(scaling_law_df)
+    output_paths_to_dfs["macro_avg.parquet"] = macro_df
+    return output_paths_to_dfs
 
 
 def parse_sl_results(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
@@ -49,9 +47,9 @@ def parse_sl_results(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     sl_two_step_df = _extract_two_step_preds(sl_two_step_rows)
     sl_true_df = _extract_true_metrics(sl_two_step_rows)
     return {
-        "scaling_law_pred_one_step_raw": pl.DataFrame(sl_one_step_df),
-        "scaling_law_pred_two_step_raw": pl.DataFrame(sl_two_step_df),
-        "scaling_law_true_raw": pl.DataFrame(sl_true_df),
+        "scaling_law_pred_one_step.parquet": pl.DataFrame(sl_one_step_df),
+        "scaling_law_pred_two_step.parquet": pl.DataFrame(sl_two_step_df),
+        "scaling_law_true.parquet": pl.DataFrame(sl_true_df),
     }
 
 
