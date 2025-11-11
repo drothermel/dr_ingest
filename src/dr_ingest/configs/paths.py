@@ -49,3 +49,8 @@ class Paths(BaseModel):
     data_cache_dir: ExistingPath = Field(
         default_factory=lambda data: data["data_dir"] / "cache"
     )
+    metrics_all_dir: Path = Field(
+        default_factory=lambda data: data["data_dir"]
+        / "datadec"
+        / "2025-10-08_posttrain"
+    )
