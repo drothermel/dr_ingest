@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 from attrs import define
 
+from dr_ingest.datadec.recipes import DataDecideRecipeConfig
 from dr_ingest.normalization import CONVERSION_MAP
 from dr_ingest.wandb.config import (
     load_column_renames,
@@ -26,7 +27,7 @@ RUN_TYPE_HOOKS: dict[str, Any] = {
 class ProcessingContext:
     column_renames: dict[str, str]
     defaults: dict[str, Any]
-    recipe_mapping: dict[str, str]
+    recipe_cfg: DataDecideRecipeConfig
     recipe_columns: list[str]
     config_field_mapping: dict[str, str]
     summary_field_mapping: dict[str, str]
@@ -63,8 +64,8 @@ class ProcessingContext:
         return cls(
             column_renames=column_renames,
             defaults=defaults,
-            recipe_mapping=dict(load_recipe_mapping()),
-            recipe_columns=list(load_recipe_columns()),
+            recipe_cfg=DataDecideRecipeConfig(),
+            recipe_columns=DataDecideRecipeConfig().recipe_order,
             config_field_mapping=config_field_mapping,
             summary_field_mapping=summary_field_mapping,
             value_converter_map=value_converter_map,
@@ -89,11 +90,15 @@ class ProcessingContext:
     ) -> pd.DataFrame:
         result = frame.copy()
         target_columns = columns or self.recipe_columns
+        norm_cols_set = set(self.recipe_cfg.recipe_order)
+        norm_to_orig_recipe_mapping = {
+            v: k for k, v in self.recipe_cfg.normalized_recipe_map if k in norm_cols_set
+        }
         for column in target_columns:
             if column not in result.columns:
                 continue
             result[column] = result[column].map(
-                lambda value: self.recipe_mapping.get(value, value)
+                lambda value: norm_to_orig_recipe_mapping.get(value, value)
                 if pd.notna(value)
                 else value
             )

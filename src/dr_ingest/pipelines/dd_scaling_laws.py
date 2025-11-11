@@ -5,12 +5,15 @@ from typing import Any
 import polars as pl
 
 from dr_ingest.configs import DataDecideSourceConfig
-from dr_ingest.normalization import normalize_ds_str
+from dr_ingest.datadec.recipes import DataDecideRecipeConfig
 
 __all__ = ["parse_scaling_law_dir"]
 
 
-def parse_scaling_law_dir(source_dir: Path) -> dict[str, pl.DataFrame]:
+def parse_scaling_law_dir(
+    source_dir: Path,
+    recipe_config: DataDecideRecipeConfig | None = None,
+) -> dict[str, pl.DataFrame]:
     """Load and parse scaling-law parquet files from a directory.
 
     Parameters
@@ -23,6 +26,7 @@ def parse_scaling_law_dir(source_dir: Path) -> dict[str, pl.DataFrame]:
     dict[str, pl.DataFrame]
         Dictionary including the macro-average dataframe and parsed scaling-law outputs.
     """
+    recipe_cfg = recipe_config or DataDecideRecipeConfig()
     source_cfg = DataDecideSourceConfig()
     macro_path = source_cfg.macro_avg_hf.get_the_single_filepath(local_dir=source_dir)
     fit_path = source_cfg.scaling_laws_hf.get_the_single_filepath(local_dir=source_dir)
@@ -32,15 +36,17 @@ def parse_scaling_law_dir(source_dir: Path) -> dict[str, pl.DataFrame]:
 
     macro_df = pl.read_parquet(macro_path)
     scaling_law_df = pl.read_parquet(fit_path)
-    output_paths_to_dfs = parse_sl_results(scaling_law_df)
+    output_paths_to_dfs = parse_sl_results(scaling_law_df, recipe_cfg)
     output_paths_to_dfs["macro_avg.parquet"] = macro_df
     return output_paths_to_dfs
 
 
-def parse_sl_results(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
+def parse_sl_results(
+    df: pl.DataFrame, cfg: DataDecideRecipeConfig
+) -> dict[str, pl.DataFrame]:
     """Split scaling-law results into the three downstream datasets."""
 
-    sl_w_cfg = _prep_sl_cfg(df)
+    sl_w_cfg = _prep_sl_cfg(df, cfg)
     sl_one_step_rows = [row for row in sl_w_cfg if row["fit_config"]["one_step"]]
     sl_two_step_rows = [row for row in sl_w_cfg if not row["fit_config"]["one_step"]]
     sl_one_step_df = _extract_one_step_preds(sl_one_step_rows)
@@ -53,7 +59,7 @@ def parse_sl_results(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
     }
 
 
-def _prep_sl_cfg(df: pl.DataFrame) -> list[dict[str, Any]]:
+def _prep_sl_cfg(df: pl.DataFrame, cfg: DataDecideRecipeConfig) -> list[dict[str, Any]]:
     """Attach parsed config information to each scaling-law row."""
 
     col_list = df.to_dicts()
@@ -67,7 +73,10 @@ def _prep_sl_cfg(df: pl.DataFrame) -> list[dict[str, Any]]:
             "helper_point": _get_sl_helper_point(setup_val),
             "heldout": _get_heldout(setup_val),
         }
-        mapping["recipe"] = normalize_ds_str(mapping["mix"])
+        mapping["recipe"] = cfg.normalized_recipe_map.get(
+            mapping["mix"],
+            mapping["mix"],
+        )
         del mapping["mix"], mapping["setup"]
     return col_list
 

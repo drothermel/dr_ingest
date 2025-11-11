@@ -16,30 +16,6 @@ SUFFIX_MULTIPLIERS = {
 }
 COMPUTE_UNITS = "e15"
 TOKENS_UNITS = "million"
-DS_MIX_TO_DS_NAME = {
-    "falcon_and_cc": "falcon_cc",
-    "falcon_and_cc_eli5_oh_top10p": "falcon_cc_qc_10",
-    "falcon_and_cc_eli5_oh_top20p": "falcon_cc_qc_20",
-    "falcon_and_cc_og_eli5_oh_top10p": "falcon_cc_qc_orig_10",
-    "falcon_and_cc_tulu_qc_top10": "falcon_cc_qc_tulu_10",
-    "dolma_v1_6_and_sources_baseline": "dolma16",
-    "no_code": "dolma17_no_code",
-    "no_reddit": "dolma17_no_reddit",
-    "no_math_no_code": "dolma17_no_math_code",
-    "no_flan": "dolma17_no_flan",
-    "dolma17_50p_dclm_baseline_50p": "dclm_baseline_50_dolma_50",
-    "dolma17_25p_dclm_baseline_75p": "dclm_baseline_75_dolma_25",
-    "dolma17_75p_dclm_baseline_25p": "dclm_baseline_25_dolma_75",
-    "pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top10p": "dclm_baseline_qc_10",
-    "pos_eli5_oh_neg_dclm_refinedweb_steps_2000_lr3e4_top20p": "dclm_baseline_qc_20",
-    "dclm_ft7percentile_fw3": "dclm_baseline_qc_7_fw3",
-    "dclm_ft7percentile_fw2": "dclm_baseline_qc_7_fw2",
-    "prox_fineweb_pro": "fineweb_pro",
-    "fineweb_edu_dedup": "fineweb_edu",
-    "dclm_fw_top10": "dclm_baseline_qc_fw_10",
-    "dclm_fw_top3": "dclm_baseline_qc_fw_3",
-}
-
 _NUMBER_SUFFIX_PATTERN = re.compile(
     r"^\s*(?P<num>[+-]?\d+(?:\.\d+)?)\s*(?P<suffix>[a-z]*)\s*$"
 )
@@ -104,7 +80,6 @@ def normalize_ds_str(value: Any) -> str | None:
     if norm_str is None:
         return None
     norm_str = norm_str.replace(".", "")
-    norm_str = DS_MIX_TO_DS_NAME.get(norm_str, norm_str)
     return norm_str
 
 
