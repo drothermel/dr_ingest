@@ -8,17 +8,6 @@ import pandas as pd
 
 DELIMITERS = ("-", "_", "/", "(", ")", "%", "+", ",")
 SPACE_NORM = re.compile(r"\s+")
-SUFFIX_MULTIPLIERS = {
-    "m": 1e6,
-    "g": 1e9,
-    "b": 1e9,
-    "t": 1e12,
-}
-COMPUTE_UNITS = "e15"
-TOKENS_UNITS = "million"
-_NUMBER_SUFFIX_PATTERN = re.compile(
-    r"^\s*(?P<num>[+-]?\d+(?:\.\d+)?)\s*(?P<suffix>[a-z]*)\s*$"
-)
 
 
 def is_nully(value: Any) -> bool:
@@ -41,94 +30,6 @@ def normalize_str(value: Any, final_delim: str = " ") -> str | None:
     if final_delim != " ":
         text = text.replace(" ", final_delim)
     return text or None
-
-
-def convert_number(
-    value: float | int | str | None, unit: str
-) -> tuple[float | None, str]:
-    value = normalize_numeric(value)
-    if value is not None:
-        if unit == "million":
-            return to_millions(value)
-        elif unit == "billion":
-            return to_billions(value)
-        elif unit == "trillion":
-            return to_trillions(value)
-        elif unit == "e15":
-            return to_e15(value)
-    return None, unit
-
-
-def to_millions(value: float | int) -> tuple[float, str]:
-    return value / 1e6, "million"
-
-
-def to_billions(value: float | int) -> tuple[float, str]:
-    return value / 1e9, "billion"
-
-
-def to_trillions(value: float | int) -> tuple[float, str]:
-    return value / 1e12, "trillion"
-
-
-def to_e15(value: float | int) -> tuple[float, str]:
-    return value / 1e15, "e15"
-
-
-def normalize_ds_str(value: Any) -> str | None:
-    norm_str = normalize_str(value, final_delim="_")
-    if norm_str is None:
-        return None
-    norm_str = norm_str.replace(".", "")
-    return norm_str
-
-
-def normalize_tokens(value: int | float | str | None) -> float | None:
-    number = normalize_numeric(value)
-    return convert_number(number, TOKENS_UNITS)[0]
-
-
-def normalize_compute(value: int | float | str | None) -> float | None:
-    number = normalize_numeric(value)
-    return convert_number(number, COMPUTE_UNITS)[0]
-
-
-def normalize_numeric(value: Any) -> float | None:
-    if is_nully(value):
-        return None
-    value = str(value).strip()
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def convert_string_to_number(value_str: Any) -> float | None:
-    if is_nully(value_str):
-        return None
-
-    text = normalize_str(value_str)
-    if text is None:
-        return None
-
-    match = _NUMBER_SUFFIX_PATTERN.match(text)
-    if not match:
-        return None
-
-    try:
-        base_value = float(match.group("num"))
-    except (TypeError, ValueError):
-        return None
-
-    suffix = match.group("suffix") or ""
-    if not suffix:
-        return base_value
-
-    multiplier = SUFFIX_MULTIPLIERS.get(suffix[0])
-    if multiplier is None:
-        return None
-
-    return base_value * multiplier
 
 
 def convert_timestamp(ts_str: Any) -> pd.Timestamp | None:
@@ -154,17 +55,14 @@ def df_coerce_to_numeric(df: pd.DataFrame, column: str) -> pd.DataFrame:
 
 
 CONVERSION_MAP = {
-    "tokens_to_number.v1": convert_string_to_number,
     "timestamp.v1": convert_timestamp,
 }
 
 
 __all__ = [
     "CONVERSION_MAP",
-    "convert_string_to_number",
     "convert_timestamp",
     "df_coerce_to_numeric",
     "is_nully",
-    "normalize_numeric",
     "normalize_str",
 ]
