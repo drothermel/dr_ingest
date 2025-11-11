@@ -8,11 +8,9 @@ from attrs import define
 from dr_ingest.datadec.recipes import DataDecideRecipeConfig
 from dr_ingest.normalization import CONVERSION_MAP
 from dr_ingest.wandb.config import (
+    IngestWandbDefaults,
     load_column_renames,
-    load_defaults,
     load_fill_from_config_map,
-    load_recipe_columns,
-    load_recipe_mapping,
     load_summary_field_map,
     load_value_converter_map,
 )
@@ -43,9 +41,7 @@ class ProcessingContext:
         config_field_mapping_override: dict[str, str] | None = None,
         summary_field_mapping_override: dict[str, str] | None = None,
     ) -> ProcessingContext:
-        defaults = dict(load_defaults())
-        if overrides:
-            defaults.update(overrides)
+        defaults_dict = IngestWandbDefaults(**(overrides or {})).model_dump()
 
         column_renames = dict(load_column_renames())
         if column_renames_override:
@@ -63,7 +59,7 @@ class ProcessingContext:
 
         return cls(
             column_renames=column_renames,
-            defaults=defaults,
+            defaults=defaults_dict,
             recipe_cfg=DataDecideRecipeConfig(),
             recipe_columns=DataDecideRecipeConfig().recipe_order,
             config_field_mapping=config_field_mapping,
