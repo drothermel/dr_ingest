@@ -26,7 +26,7 @@ class ProcessingContext:
     column_renames: dict[str, str]
     defaults: dict[str, Any]
     recipe_cfg: DataDecideRecipeConfig
-    recipe_columns: list[str]
+    target_cols_with_recipe_strs: list[str]
     config_field_mapping: dict[str, str]
     summary_field_mapping: dict[str, str]
     value_converter_map: dict[str, str]
@@ -61,7 +61,11 @@ class ProcessingContext:
             column_renames=column_renames,
             defaults=defaults_dict,
             recipe_cfg=DataDecideRecipeConfig(),
-            recipe_columns=DataDecideRecipeConfig().recipe_order,
+            target_cols_with_recipe_strs=[
+                "comparison_model_recipe",
+                "initial_checkpoint_recipe",
+                "ckpt_data",
+            ],
             config_field_mapping=config_field_mapping,
             summary_field_mapping=summary_field_mapping,
             value_converter_map=value_converter_map,
@@ -85,10 +89,12 @@ class ProcessingContext:
         self, frame: pd.DataFrame, columns: list[str] | None = None
     ) -> pd.DataFrame:
         result = frame.copy()
-        target_columns = columns or self.recipe_columns
+        target_columns = columns or self.target_cols_with_recipe_strs
         norm_cols_set = set(self.recipe_cfg.recipe_order)
         norm_to_orig_recipe_mapping = {
-            v: k for k, v in self.recipe_cfg.normalized_recipe_map if k in norm_cols_set
+            v: k
+            for k, v in self.recipe_cfg.normalized_recipe_map.items()
+            if k in norm_cols_set
         }
         for column in target_columns:
             if column not in result.columns:
