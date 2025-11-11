@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
-from dr_ingest.hf import HFLocation
+from dr_ingest.hf.location import HFLocation
 from dr_ingest.utils.display import add_marimo_display
 
 
@@ -14,6 +14,8 @@ class DataDecideSourceConfig(BaseModel):
     perplexity_metrics_csv: HttpUrl = HttpUrl(
         "https://github.com/allenai/DataDecide/blob/main/perplexity_metrics_by_group.csv"
     )
+    local_path_include_org: bool = True
+    local_path_include_repo: bool = True
 
     results_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
@@ -30,7 +32,7 @@ class DataDecideSourceConfig(BaseModel):
     scaling_laws_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
             org="allenai",
-            repo_name="DataDecide-eval-scaling-laws",
+            repo_name="DataDecide-eval-results",
             filepaths=[
                 "data/scaling_law_fit-00000-of-00001.parquet",
             ],
@@ -39,7 +41,7 @@ class DataDecideSourceConfig(BaseModel):
     macro_avg_hf: HFLocation = Field(
         default_factory=lambda: HFLocation(
             org="allenai",
-            repo_name="DataDecide-eval-macro-avg",
+            repo_name="DataDecide-eval-results",
             filepaths=[
                 "data/macro_avg-00000-of-00001.parquet",
             ],

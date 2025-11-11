@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from dr_ingest.hf import HFLocation
+from dr_ingest.hf.location import HFLocation
 from dr_ingest.utils import add_marimo_display
 
 
@@ -13,6 +13,8 @@ class ParsedSourceConfig(BaseModel):
             filepaths=[
                 "train_results.parquet",
             ],
+            local_path_include_org=False,
+            local_path_include_repo=False,
         )
     )
     scaling_laws: HFLocation = Field(
@@ -20,8 +22,13 @@ class ParsedSourceConfig(BaseModel):
             org="drotherm",
             repo_name="dd_parsed",
             filepaths=[
-                "scaling_law_fit.parquet",
+                "macro_avg.parquet",
+                "scaling_law_pred_one_step.parquet",
+                "scaling_law_pred_two_step.parquet",
+                "scaling_law_true.parquet",
             ],
+            local_path_include_org=False,
+            local_path_include_repo=False,
         )
     )
     wandb: HFLocation = Field(
@@ -37,5 +44,7 @@ class ParsedSourceConfig(BaseModel):
                 "wandb_runs_system_metrics.parquet",
                 "wandb_runs_wandb_metadata.parquet",
             ],
+            local_path_include_org=False,
+            local_path_include_repo=False,
         )
     )

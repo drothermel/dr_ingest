@@ -33,6 +33,9 @@ class HFLocation(BaseModel):
     repo_name: str
     filepaths: list[str] | None = None
 
+    local_path_include_org: bool = True
+    local_path_include_repo: bool = True
+
     # --- computed fields -------------------------------------------------
 
     @computed_field
@@ -134,22 +137,40 @@ class HFLocation(BaseModel):
     def _is_dir(path: str | Path) -> bool:
         return str(path).endswith("/") or not Path(path).suffix
 
-    def get_the_single_filepath(self) -> str:
-        if self.filepaths is None or len(self.filepaths) != 1:
-            raise ValueError("Expected exactly one filepath")
-        return self.filepaths[0]
+    def get_the_single_filepath(self, local_dir: str | Path | None = None) -> str:
+        return self.resolve_filepaths(local_dir=local_dir, expect_one=True)[0]
+
+    def build_local_dir(self, local_dir: str | Path | None = None) -> str | None:
+        dir_parts = [str(local_dir or "")]
+        if self.local_path_include_org:
+            dir_parts.append(self.org)
+        if self.local_path_include_repo:
+            dir_parts.append(self.repo_name)
+        return "/".join(dir_parts)
 
     def resolve_filepaths(
         self,
         extra_paths: list[str | Path] | None = None,
+        local_dir: str | Path | None = None,
         required: bool = True,
+        expect_one: bool = False,
     ) -> list[str]:
-        paths = [
+        # Preserve order and deduplicate
+        seen = {}
+        for path in [
             *(self.filepaths or []),
             *[self.norm_posix(p) for p in extra_paths or []],
-        ]
+        ]:
+            if path in seen:
+                continue
+            seen[path] = path
+        paths = list(seen.keys())
+        if local_dir:
+            paths = [f"{self.build_local_dir(local_dir)}/{path}" for path in paths]
         if required and not paths:
             raise ValueError("No filepaths found")
+        if expect_one and len(paths) != 1:
+            raise ValueError("Expected exactly one filepath")
         return paths
 
     def get_path_uri(self, path: str | Path) -> HFResource:
