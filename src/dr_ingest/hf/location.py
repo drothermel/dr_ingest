@@ -59,6 +59,13 @@ class HFLocation(BaseModel):
         api_base_url = "https://huggingface.co/api"
         return HttpUrl(f"{api_base_url}/{self.repo_type}/{self.repo_id}")
 
+    @computed_field
+    @property
+    def hf_hub_repo_type(self) -> str:
+        if self.repo_type == "datasets":
+            return "dataset"
+        raise ValueError(f"Invalid repo type: {self.repo_type}")
+
     # --- constructors ----------------------------------------------------
     @classmethod
     def from_uri(

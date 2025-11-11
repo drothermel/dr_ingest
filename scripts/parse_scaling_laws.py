@@ -49,18 +49,20 @@ def upload(
     paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
     hf_loc = ParsedSourceConfig().scaling_laws
     local_paths = hf_loc.resolve_filepaths(local_dir=paths.data_cache_dir)
+    remote_paths = hf_loc.resolve_filepaths()
 
     # Verify all before starting to upload
     for path in local_paths:
         if not Path(path).exists():
             raise FileNotFoundError(f"{path} not found, cannot upload")
 
-    for local_path in local_paths:
-        print(f">> Uploading {local_path} to {hf_loc.repo_id}")
+    for local_path, remote_path in zip(local_paths, remote_paths, strict=True):
+        print(f">> Uploading {local_path} to {hf_loc.repo_id}: {remote_path}")
         upload_file_to_hf(
             local_path=local_path,
-            hf_loc=hf_loc,
+            hf_loc=hf_loc.model_copy(update={"filepaths": [remote_path]}),
         )
+        print()
 
 
 @app.command()

@@ -10,9 +10,11 @@ requires-python = ">=3.12"
 dependencies = [
     "argparse>=1.4.0",
     "dotenv>=0.9.9",
+    "dr-wandb==0.1.2",
     "duckdb>=1.4.1",
+    "fastparquet>=2024.11.0",
     "huggingface-hub>=1.1.2",
-    "marimo==0.17.7",
+    "marimo[sql]==0.17.7",
     "more-itertools>=10.8.0",
     "multiprocess>=0.70.18",
     "pandas>=2.3.3",
