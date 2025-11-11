@@ -3,3 +3,4 @@ notebooks/*.jsonl
 notebooks/*.parquet
 data/
 .env
+**/__marimo__/*
