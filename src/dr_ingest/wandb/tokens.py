@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from dr_ingest.df_ops import ensure_column, masked_setter
 from dr_ingest.normalization import df_coerce_to_numeric
+from dr_ingest.utils.pandas import ensure_column, masked_setter
 from dr_ingest.wandb.constants import ALL_FT_TOKENS, DEFAULT_FULL_FT_EPOCHS
 
 FULL_TOTAL_TOKENS = DEFAULT_FULL_FT_EPOCHS * ALL_FT_TOKENS

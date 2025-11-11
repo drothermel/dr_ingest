@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from dr_ingest.df_ops import apply_if_column, ensure_column
+from dr_ingest.utils.pandas import apply_if_column, ensure_column
 from dr_ingest.wandb.metrics import canonicalize_metric_label
 
 
