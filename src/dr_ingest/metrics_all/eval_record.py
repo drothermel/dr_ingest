@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
 from dr_ingest.types import TaskArtifactType
+from dr_ingest.utils.display import add_marimo_display
 
 __all__ = [
     "ArtifactIndex",
@@ -17,6 +18,7 @@ __all__ = [
 ]
 
 
+@add_marimo_display()
 class EvalRecord(BaseModel):
     """Wrapper around raw metrics-all rows with helpers for enrichment."""
 
@@ -84,6 +86,7 @@ class EvalRecord(BaseModel):
         return list(first_by_task.values())
 
 
+@add_marimo_display()
 class TaskArtifacts(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -96,6 +99,7 @@ class TaskArtifacts(BaseModel):
         return {role.value: self.paths_by_role.get(role) for role in roles}
 
 
+@add_marimo_display()
 class ArtifactIndex(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -130,6 +134,7 @@ class ArtifactIndex(BaseModel):
         )
 
 
+@add_marimo_display()
 class EvalRecordSet(BaseModel):
     model_config = ConfigDict(frozen=True)
 
