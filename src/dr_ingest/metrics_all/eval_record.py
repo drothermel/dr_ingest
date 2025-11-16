@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, MutableMapping
 
 import srsly
+from pydantic import BaseModel, ConfigDict, Field
 
 from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
 from dr_ingest.types import TaskArtifactType
@@ -17,32 +17,34 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True)
-class EvalRecord:
+class EvalRecord(BaseModel):
     """Wrapper around raw metrics-all rows with helpers for enrichment."""
 
+    model_config = ConfigDict(frozen=True)
+
+    original_task_name: str
+    trimmed_task_name: str = Field(repr=False)
+    task_idx: int | None
     data: dict[str, Any]
-
-    @property
-    def task_name(self) -> str:
-        value = self.data["task_name"]
-        if not isinstance(value, str):
-            raise TypeError("task_name must be a string")
-        return value
-
-    @property
-    def trimmed_task_name(self) -> str:
-        return self.task_name.strip()
-
-    @property
-    def task_idx(self) -> int | None:
-        value = self.data.get("task_idx")
-        return value if isinstance(value, int) else None
 
     def build_task_stem(self, cfg: LoadMetricsAllConfig) -> str | None:
         return cfg.build_task_stem(
             task_idx=self.task_idx,
             trimmed_task_name=self.trimmed_task_name,
+        )
+
+    @classmethod
+    def from_raw(cls, raw_record: dict[str, Any]) -> "EvalRecord":
+        task_name = raw_record["task_name"]
+        if not isinstance(task_name, str):
+            raise TypeError("task_name must be a string")
+        task_idx_value = raw_record.get("task_idx")
+        task_idx = task_idx_value if isinstance(task_idx_value, int) else None
+        return cls(
+            original_task_name=task_name,
+            trimmed_task_name=task_name.strip(),
+            task_idx=task_idx,
+            data=raw_record,
         )
 
     def to_enriched_dict(
@@ -76,14 +78,15 @@ class EvalRecord:
             if serialized in seen_serialized:
                 continue
             seen_serialized.add(serialized)
-            candidate = cls(data=raw_record)
-            if candidate.task_name not in first_by_task:
-                first_by_task[candidate.task_name] = candidate
+            candidate = cls.from_raw(raw_record)
+            if candidate.original_task_name not in first_by_task:
+                first_by_task[candidate.original_task_name] = candidate
         return list(first_by_task.values())
 
 
-@dataclass(frozen=True)
-class TaskArtifacts:
+class TaskArtifacts(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     stem: str
     paths_by_role: Mapping[TaskArtifactType, Path]
 
@@ -93,8 +96,9 @@ class TaskArtifacts:
         return {role.value: self.paths_by_role.get(role) for role in roles}
 
 
-@dataclass(frozen=True)
-class ArtifactIndex:
+class ArtifactIndex(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     entries: Mapping[str, TaskArtifacts]
 
     def role_paths(
@@ -119,15 +123,16 @@ class ArtifactIndex:
                 stem = path.name.removesuffix(suffix)
                 index[stem][role] = path
         return cls(
-            {
+            entries={
                 stem: TaskArtifacts(stem=stem, paths_by_role=dict(paths))
                 for stem, paths in index.items()
             }
         )
 
 
-@dataclass(frozen=True)
-class EvalRecordSet:
+class EvalRecordSet(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     cfg: LoadMetricsAllConfig
     metrics_all_file: Path
 
