@@ -17,16 +17,16 @@ def download(
     force_download: bool = False,
     data_cache_dir: str | None = None,
 ) -> None:
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     dd_cfg = DataDecideSourceConfig()
     cached_download_tables_from_hf(
         dd_cfg.macro_avg_hf,
-        local_dir=paths.data_cache_dir,
+        paths=paths,
         force_download=force_download,
     )
     cached_download_tables_from_hf(
         dd_cfg.scaling_laws_hf,
-        local_dir=paths.data_cache_dir,
+        paths=paths,
         force_download=force_download,
     )
 
@@ -35,7 +35,7 @@ def download(
 def parse(
     data_cache_dir: str | None = None,
 ) -> None:
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     parsed_outputs = parse_scaling_law_dir(paths.data_cache_dir)
     for filepath, df in parsed_outputs.items():
         out_path = f"{paths.data_cache_dir}/{filepath}"
@@ -47,7 +47,7 @@ def parse(
 def upload(
     data_cache_dir: str | None = None,
 ) -> None:
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     hf_loc = ParsedSourceConfig().scaling_laws
     local_paths = hf_loc.resolve_filepaths(local_dir=paths.data_cache_dir)
     remote_paths = hf_loc.resolve_filepaths()

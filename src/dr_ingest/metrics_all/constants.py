@@ -1,9 +1,8 @@
-from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
-from dr_ingest.configs import Paths
 from dr_ingest.types import TaskArtifactType
 from dr_ingest.utils.display import add_marimo_display
 
@@ -12,11 +11,7 @@ from dr_ingest.utils.display import add_marimo_display
 class LoadMetricsAllConfig(BaseModel):
     """Configuration shared by all metrics-all ingestion utilities."""
 
-    model_config = ConfigDict(validate_default=True, frozen=True)
-
-    root_paths: Iterable[Path | str] = Field(
-        default_factory=lambda: [Paths().metrics_all_dir]
-    )
+    root_paths: list[Path]
     results_filename: str = "metrics-all.jsonl"
     task_file_prefix: str = "task-"
     task_idx_width: int = 3
@@ -29,19 +24,15 @@ class LoadMetricsAllConfig(BaseModel):
         }
     )
 
-    @field_validator("results_filename", "task_file_prefix", "stem_separator")
-    @classmethod
-    def _require_non_empty(cls, value: str) -> str:
-        if not value:
-            raise ValueError("string fields must be non-empty")
-        return value
-
-    @field_validator("task_idx_width")
-    @classmethod
-    def _positive_width(cls, value: int) -> int:
-        if value < 1:
-            raise ValueError("task_idx_width must be at least 1")
-        return value
+    @field_validator("root_paths", mode="before")
+    def validate_root_paths(cls, value: Any) -> list[Path]:
+        if not isinstance(value, list | str | Path):
+            raise ValueError("root_paths must be a list, string or Path")
+        if isinstance(value, str | Path):
+            value = [value]
+        if not all(isinstance(path, str | Path) for path in value):
+            raise ValueError("root_paths must be a list of Path objects")
+        return [Path(p_or_s) for p_or_s in value]
 
     @property
     def artifact_types(self) -> tuple[TaskArtifactType, ...]:

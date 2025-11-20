@@ -49,7 +49,7 @@ def download(
     data_cache_dir: str | None = None,
 ) -> None:
     """Download raw Data Decide Results from HF to Local"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     cached_download_tables_from_hf(
         DataDecideSourceConfig().results_hf,
         local_dir=paths.data_cache_dir,
@@ -62,11 +62,11 @@ def parse(
     data_cache_dir: str | None = None,
 ) -> None:
     """Parse already downloaded Data Decide Results"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     output_path = resolve_parsed_output_path(paths=paths)
     source_loc = DataDecideSourceConfig().results_hf
     source_df = pd.concat(
-        get_tables_from_cache(source_loc, local_dir=paths.data_cache_dir),
+        get_tables_from_cache(source_loc, paths=paths),
         ignore_index=True,
     )
     print(">> Begin parsing, this will take 2min+")
@@ -80,7 +80,7 @@ def upload(
     data_cache_dir: str | None = None,
 ) -> None:
     """Upload parsed Data Decide Results from local to HF"""
-    paths = Paths(data_cache_dir=data_cache_dir) if data_cache_dir else Paths()  # type: ignore
+    paths = Paths(data_cache_dir=Path(data_cache_dir)) if data_cache_dir else Paths()
     local_parsed_path = resolve_parsed_output_path(paths=paths)
     if not local_parsed_path.exists():
         raise FileNotFoundError(

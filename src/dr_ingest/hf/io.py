@@ -39,11 +39,10 @@ def upload_file_to_hf(
 
 
 def get_tables_from_cache(
-    hf_loc: HFLocation,
-    local_dir: Path | str | None = None,
+    hf_loc: HFLocation, paths: Paths | None = None
 ) -> dict[str, pd.DataFrame]:
-    local_dir = Path(local_dir or Paths().data_cache_dir)
-    local_paths = hf_loc.resolve_filepaths(local_dir=local_dir)
+    paths = paths or Paths()
+    local_paths = hf_loc.resolve_filepaths(local_dir=paths.data_cache_dir)
     for fp in local_paths:
         if not Path(fp).exists():
             raise FileNotFoundError(f"Local file not found: {fp}")
@@ -68,21 +67,23 @@ def query_hf_with_duckdb(
 def cached_download_tables_from_hf(
     hf_loc: HFLocation,
     *,
-    local_dir: Path | str | None = None,
-    hf_token: str | None = None,
+    paths: Paths | None = None,
+    auth: AuthSettings | None = None,
     force_download: bool = False,
     verbose: bool = True,
 ) -> dict[str, str | Path]:
     """Download tables directly from Hugging Face storage."""
 
-    local_dir = Path(local_dir or Paths().data_cache_dir)
-    local_paths = hf_loc.resolve_filepaths(local_dir=local_dir)
+    paths = paths or Paths()
+    auth = auth or AuthSettings()
+
+    local_paths = hf_loc.resolve_filepaths(local_dir=paths.data_cache_dir)
     if not force_download and all(Path(fp).exists() for fp in local_paths):
         if verbose:
             print(f">> All tables already cached:\n - {'\n - '.join(local_paths)}")
         return {Path(fp).stem: fp for fp in local_paths}
 
-    local_dir.mkdir(parents=True, exist_ok=True)
+    paths.data_cache_dir.mkdir(parents=True, exist_ok=True)
     remote_paths = hf_loc.resolve_filepaths()
     tables: dict[str, str | Path] = {}
     for remote_path in remote_paths:
@@ -90,8 +91,8 @@ def cached_download_tables_from_hf(
             repo_id=hf_loc.repo_id,
             filename=remote_path,
             repo_type=hf_loc.hf_hub_repo_type,
-            token=AuthSettings().resolve("hf", hf_token),
-            local_dir=hf_loc.build_local_dir(local_dir),
+            token=auth.resolve("hf"),
+            local_dir=hf_loc.build_local_dir(paths.data_cache_dir),
             force_download=force_download,
         )
         tables[remote_path] = local_path
