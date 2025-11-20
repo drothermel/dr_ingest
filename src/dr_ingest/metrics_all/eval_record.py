@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Mapping, MutableMapping
 from pathlib import Path
-from typing import Any, Iterable, Mapping, MutableMapping
+from typing import Any
 
 import srsly
 from pydantic import BaseModel, ConfigDict, Field
@@ -36,7 +37,7 @@ class EvalRecord(BaseModel):
         )
 
     @classmethod
-    def from_raw(cls, raw_record: dict[str, Any]) -> "EvalRecord":
+    def from_raw(cls, raw_record: dict[str, Any]) -> EvalRecord:
         task_name = raw_record["task_name"]
         if not isinstance(task_name, str):
             raise TypeError("task_name must be a string")
@@ -55,7 +56,7 @@ class EvalRecord(BaseModel):
         cfg: LoadMetricsAllConfig,
         run_dir: Path,
         metrics_all_path: Path,
-        artifact_index: "ArtifactIndex",
+        artifact_index: ArtifactIndex,
     ) -> dict[str, Any]:
         stem = self.build_task_stem(cfg)
         artifact_paths = artifact_index.role_paths(stem, cfg.artifact_types)
@@ -72,10 +73,12 @@ class EvalRecord(BaseModel):
         }
 
     @classmethod
-    def dedupe_by_task(cls, records: Iterable[dict[str, Any]]) -> list["EvalRecord"]:
+    def dedupe_by_task(cls, records: Iterable[Any]) -> list[EvalRecord]:
         seen_serialized: set[str] = set()
         first_by_task: dict[str, EvalRecord] = {}
         for raw_record in records:
+            if not isinstance(raw_record, dict):
+                raise ValueError(f"Expected dict, got {type(raw_record)}")
             serialized = srsly.json_dumps(raw_record, sort_keys=True)
             if serialized in seen_serialized:
                 continue
@@ -88,8 +91,6 @@ class EvalRecord(BaseModel):
 
 @add_marimo_display()
 class TaskArtifacts(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
     stem: str
     paths_by_role: Mapping[TaskArtifactType, Path]
 
@@ -101,8 +102,6 @@ class TaskArtifacts(BaseModel):
 
 @add_marimo_display()
 class ArtifactIndex(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
     entries: Mapping[str, TaskArtifacts]
 
     def role_paths(
@@ -113,12 +112,14 @@ class ArtifactIndex(BaseModel):
         if stem is None:
             return {role.value: None for role in roles}
         artifact = self.entries.get(stem)
-        return artifact.to_role_mapping(roles) if artifact else {
-            role.value: None for role in roles
-        }
+        return (
+            artifact.to_role_mapping(roles)
+            if artifact
+            else {role.value: None for role in roles}
+        )
 
     @classmethod
-    def build(cls, directory: Path, cfg: LoadMetricsAllConfig) -> "ArtifactIndex":
+    def build(cls, directory: Path, cfg: LoadMetricsAllConfig) -> ArtifactIndex:
         directory = Path(directory)
         index: MutableMapping[str, dict[TaskArtifactType, Path]] = defaultdict(dict)
         for role, suffix in cfg.task_file_suffixes.items():
@@ -136,8 +137,6 @@ class ArtifactIndex(BaseModel):
 
 @add_marimo_display()
 class EvalRecordSet(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
     cfg: LoadMetricsAllConfig
     metrics_all_file: Path
 

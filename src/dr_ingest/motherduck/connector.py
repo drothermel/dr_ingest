@@ -17,10 +17,12 @@ def open_motherduck_connection(
     auth: AuthSettings | None = None,
 ) -> duckdb.DuckDBPyConnection:
     """Open a MotherDuck connection if credentials are available."""
-
-    env_file = (paths or Paths()).repo_root / ".env"
+    paths = paths or Paths()
     auth = auth or AuthSettings()
-    md_token = auth.resolve("motherduck", dotfile_loc=str(env_file))
+
+    env_file = paths.repo_root / ".env"
+    dotfile_loc = str(env_file) if env_file.exists() else None
+    md_token = auth.resolve("motherduck", dotfile_loc=dotfile_loc)
     assert md_token, f"MotherDuck token not found in .env file: {env_file}"
     conn = duckdb.connect(f"md:?motherduck_token={md_token}")
 

@@ -1,6 +1,6 @@
 [project]
 name = "dr-ingest"
-version = "0.1.2"
+version = "0.1.3"
 description = "Helpers for ingesting data."
 readme = "README.md"
 authors = [
@@ -144,7 +144,8 @@ ignore = [
     "T201",                 # print() is fine in scripts
     "D101", "D102", "D103", # don't require docstrings
 ]
-"*_notebook.py" = [
+"notebook/**/*.py" = [
+    "ANN001",               # Allow marimo notebooks to not have anns
     "E402",                 # Import order OK in notebooks
     "F401",                 # Unused imports OK in notebooks
 ]
