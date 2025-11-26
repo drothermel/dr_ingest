@@ -10,6 +10,7 @@ def _():
     from typing import Any
     from collections.abc import Iterable
 
+    import json
     import marimo as mo
     import pandas as pd
     import duckdb
@@ -17,37 +18,44 @@ def _():
     import dr_ingest.utils as du
     from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
     from dr_ingest.types import TaskArtifactType
+    from dr_ingest.configs.paths import Paths
 
-    ex_dir = Path(
-        "/Users/daniellerothermel/"
-        "drotherm/data/datadec/"
-        "2025-11-03_posttrain/_eval_results/"
-        "meta-llama_Llama-3.1-8B__main"
+    paths = Paths(
+        metrics_all_dir="/Users/daniellerothermel/drotherm/data/datadec/",
     )
-
     load_cfg = LoadMetricsAllConfig(
-        root_paths=[ex_dir],
+        root_paths=[paths.metrics_all_dir],
     )
+    cache_root = paths.data_cache_dir / "new_ingest"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    cache_root
     return (
         Any,
         Iterable,
         LoadMetricsAllConfig,
         Path,
         TaskArtifactType,
+        cache_root,
         du,
         duckdb,
         load_cfg,
         mo,
+        paths,
         pd,
     )
+
+
+@app.cell
+def _(paths):
+    paths
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     # Next Steps
-    - Pull in the suggested helpers from chatgpt
-    - Setup dumping to cache dir
+    - test and then run caching
     """)
     return
 
@@ -79,6 +87,29 @@ def _(Iterable, pd):
         }
         return df.rename(columns=rename)
     return
+
+
+@app.function
+def sanitize_column_name(name: str) -> str:
+    import re
+
+    sanitized = re.sub(r"\W+", "_", name)
+    sanitized = re.sub(r"_+", "_", sanitized).strip("_")
+    return sanitized or "col"
+
+
+@app.function
+def build_prefixed_column_aliases(columns, table_alias, prefix, skip_cols=()):
+    skip = set(skip_cols)
+    prefix = prefix.rstrip("_") + "_"
+    aliases = []
+    for col in columns:
+        if col in skip:
+            continue
+        escaped = col.replace('"', '""')
+        safe_col = sanitize_column_name(col)
+        aliases.append(f'{table_alias}."{escaped}" AS {prefix}{safe_col}')
+    return aliases
 
 
 @app.cell(hide_code=True)
@@ -130,7 +161,7 @@ def _(Path):
         if not stem.endswith(suffix):
             raise ValueError(f"Unexpected filename for {artifact_val}: {path.name}")
         return stem[: -len(suffix)]
-    return (file_prefix_from_path,)
+    return
 
 
 @app.function
@@ -213,10 +244,25 @@ def _(Path, duckdb):
 def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
     def build_big_eval_df_for_results_dir_duckdb(
         all_paths: dict[str, Path | list[Path]],
+        cache_dir: Path | None = None,
+        force: bool = False,
+        conn: duckdb.DuckDBPyConnection | None = None,
     ) -> "pd.DataFrame":
-        import pandas as pd  # noqa: F401 - needed for mo display via DuckDB df
+        import json
+        import pandas as pd
 
-        conn = duckdb.connect()
+        results_dir = Path(all_paths["results_dir"])
+        cache_dir = Path(cache_dir) if cache_dir else Path("data/cache/new_ingest")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        slug = results_dir.name
+        parquet_path = cache_dir / f"{slug}.parquet"
+        metadata_path = cache_dir / f"{slug}.json"
+
+        if parquet_path.exists() and metadata_path.exists() and not force:
+            return pd.read_parquet(parquet_path)
+
+        close_conn = conn is None
+        conn = conn or duckdb.connect()
 
         # Load every artifact family into DuckDB relations
         rels = {}
@@ -249,8 +295,47 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
         met_rel = rels[TaskArtifactType.METRICS]
         conn.register("met", met_rel)
 
+        prefix_map = {
+            TaskArtifactType.PREDICTIONS: "prd",
+            TaskArtifactType.RECORDED_INPUTS: "rin",
+            TaskArtifactType.REQUESTS: "req",
+            TaskArtifactType.CONFIG: "cfg",
+            TaskArtifactType.METRICS: "met",
+        }
+
+        skip_map = {
+            TaskArtifactType.PREDICTIONS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.RECORDED_INPUTS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.REQUESTS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.CONFIG: {"file_prefix", "doc_id"},
+            TaskArtifactType.METRICS: {"file_prefix", "doc_id"},
+        }
+
+        select_parts = [
+            "dk.file_prefix",
+            "dk.doc_id",
+            "dk.idx",
+        ]
+        select_parts += build_prefixed_column_aliases(
+            preds_rel.columns, "preds", prefix_map[TaskArtifactType.PREDICTIONS], skip_map[TaskArtifactType.PREDICTIONS]
+        )
+        select_parts += build_prefixed_column_aliases(
+            recs_rel.columns, "recs", prefix_map[TaskArtifactType.RECORDED_INPUTS], skip_map[TaskArtifactType.RECORDED_INPUTS]
+        )
+        select_parts += build_prefixed_column_aliases(
+            reqs_rel.columns, "reqs", prefix_map[TaskArtifactType.REQUESTS], skip_map[TaskArtifactType.REQUESTS]
+        )
+        select_parts += build_prefixed_column_aliases(
+            cfg_rel.columns, "cfg", prefix_map[TaskArtifactType.CONFIG], skip_map[TaskArtifactType.CONFIG]
+        )
+        select_parts += build_prefixed_column_aliases(
+            met_rel.columns, "met", prefix_map[TaskArtifactType.METRICS], skip_map[TaskArtifactType.METRICS]
+        )
+
+        select_clause = ",\n                ".join(select_parts)
+
         result_rel = conn.sql(
-            """
+            f"""
             WITH doc_keys AS (
                 SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM preds
                 UNION
@@ -259,14 +344,7 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
                 SELECT DISTINCT file_prefix, doc_id, idx FROM reqs
             )
             SELECT
-                dk.file_prefix,
-                dk.doc_id,
-                dk.idx,
-                preds.* EXCLUDE (file_prefix, doc_id),
-                recs.*  EXCLUDE (file_prefix, doc_id),
-                reqs.*  EXCLUDE (file_prefix, doc_id, idx),
-                cfg.*   EXCLUDE (file_prefix, doc_id),
-                met.*   EXCLUDE (file_prefix, doc_id)
+                {select_clause}
             FROM doc_keys dk
             LEFT JOIN preds USING (file_prefix, doc_id)
             LEFT JOIN recs  USING (file_prefix, doc_id)
@@ -278,91 +356,96 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
             LEFT JOIN met   USING (file_prefix)
             """
         )
-        return result_rel.df()
 
+        combined_df = result_rel.df()
+
+        def _stringify_paths(obj):
+            if isinstance(obj, dict):
+                return {k: _stringify_paths(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_stringify_paths(v) for v in obj]
+            if isinstance(obj, Path):
+                return str(obj)
+            return obj
+
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
+        combined_df.to_parquet(parquet_path, index=False)
+        metadata_path.write_text(json.dumps(_stringify_paths(all_paths), indent=2))
+
+        if close_conn:
+            conn.close()
+
+        return combined_df
     return (build_big_eval_df_for_results_dir_duckdb,)
 
 
 @app.cell(column=1)
-def _(load_cfg):
-    load_cfg
+def _(
+    build_big_eval_df_for_results_dir_duckdb,
+    cache_root,
+    collect_all_eval_paths,
+    duckdb,
+    load_cfg,
+):
+    def cache_all_eval_dirs(force: bool = False):
+        conn = duckdb.connect()
+        cached = []
+        try:
+            for entry in collect_all_eval_paths(load_cfg):
+                cached.append(
+                    build_big_eval_df_for_results_dir_duckdb(
+                        entry,
+                        cache_dir=cache_root,
+                        force=force,
+                        conn=conn,
+                    )
+                )
+        finally:
+            conn.close()
+        return cached
     return
 
 
 @app.cell
-def _(collect_all_eval_paths, load_cfg):
-    all_paths = collect_all_eval_paths(load_cfg)[0]
-    list(all_paths.keys())
-    return (all_paths,)
+def _(Path, cache_root):
+    def clean_cached_results(
+        cache_dir: Path = cache_root,
+        drop_columns: set[str] | None = None,
+        output_name: str = "deduped.parquet",
+    ):
+        import pandas as pd
 
+        cache_dir = Path(cache_dir)
+        parquet_files = sorted(cache_dir.glob("*.parquet"))
+        if not parquet_files:
+            raise FileNotFoundError(f"No parquet files found in {cache_dir}")
 
-@app.cell
-def _(Any, Path):
-    def convert_dir_paths_to_df_and_md(dir_paths: dict[str, Path | list[Path]]) -> dict[str, Any]:
-        pass
-    return
+        frames = [pd.read_parquet(p) for p in parquet_files]
+        combined = pd.concat(frames, ignore_index=True)
 
+        drop_set = set(drop_columns or {"file_prefix", "task_name"})
+        drop_candidates = {
+            col
+            for col in combined.columns
+            if col in drop_set or col.endswith("_path") or col.endswith("_dir")
+        }
+        if drop_candidates:
+            combined = combined.drop(columns=sorted(drop_candidates))
 
-@app.cell
-def _(Path, TaskArtifactType, all_paths, file_prefix_from_path):
-    for type_str, path_list in all_paths.items():
-        if isinstance(path_list, str | Path):
-            print(type_str, path_list)
-            print()
-            continue
+        for col in combined.select_dtypes(include="object").columns:
+            combined[col] = combined[col].astype("string")
 
-        if len(path_list) == 0:
-            continue
-        print(type_str, file_prefix_from_path(path_list[0], TaskArtifactType(type_str)), path_list[0])
-        print()
+        deduped = combined.drop_duplicates().reset_index(drop=True)
+        output_path = cache_dir / output_name
+        deduped.to_parquet(output_path, index=False)
+        return deduped, output_path
     return
 
 
 @app.cell
 def _(duckdb):
     conn = duckdb.connect()
-    return (conn,)
-
-
-@app.cell
-def _(
-    TaskArtifactType,
-    all_paths,
-    conn,
-    load_json_artifact,
-    load_jsonl_artifact,
-):
-    print(f"Start Loading Artifacts from Dir: {all_paths['results_dir']}")
-    sample_dfs = {}
-    for atype, apaths in all_paths.items():
-        if atype not in {t.value for t in TaskArtifactType} or not apaths:
-            continue
-
-        print(f">> Loading {atype}")
-        if apaths[0].suffix == ".jsonl":
-            sample_dfs[atype] = load_jsonl_artifact(conn, apaths, atype).df()
-        elif apaths[0].suffix == ".json":
-            sample_dfs[atype] = load_json_artifact(conn, apaths, atype).df()
-        else:
-            print(apaths[0], apaths[0].suffix)
-    return (sample_dfs,)
-
-
-@app.cell
-def _(mo, sample_dfs):
-    for _atype, _sdf in sample_dfs.items():
-        mo.output.append(mo.vstack([
-            mo.md(f"## {_atype}"),
-            _sdf
-        ]))
     return
-
-
-@app.cell
-def _(all_paths, build_big_eval_df_for_results_dir_duckdb):
-    combined_df = build_big_eval_df_for_results_dir_duckdb(all_paths)
-    combined_df.head()
-    return (combined_df,)
 
 
 @app.cell
