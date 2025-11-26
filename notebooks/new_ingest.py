@@ -136,26 +136,27 @@ def _(Path):
 @app.function
 def prep_artifact_relation(conn, rel, artifact_value, keep_doc_id):
     suffix_len = len(f"-{artifact_value}")
-    temp_name = f"raw_{artifact_value}"
-    conn.register(temp_name, rel)
-    doc_id_expr = "doc_id" if keep_doc_id else "CAST(NULL AS VARCHAR) AS doc_id"
-    return conn.sql(f"""
+    safe_name = f"raw_{artifact_value.replace('-', '_')}"
+    conn.register(safe_name, rel)
+    doc_id_clause = "" if keep_doc_id else "CAST(NULL AS VARCHAR) AS doc_id,\n            "
+    return conn.sql(
+        f"""
         WITH extracted AS (
             SELECT
-                {temp_name}.*,
+                {safe_name}.*,
                 regexp_replace(CAST(filename AS VARCHAR), '^.*/', '') AS basename,
                 regexp_replace(
                     regexp_replace(CAST(filename AS VARCHAR), '^.*/', ''),
                     '\\.[^.]*$', ''
                 ) AS stem
-            FROM {temp_name}
+            FROM {safe_name}
         )
         SELECT
             left(stem, length(stem) - {suffix_len}) AS file_prefix,
-            {doc_id_expr},
-            extracted.* EXCLUDE (filename, basename, stem)
+            {doc_id_clause}extracted.* EXCLUDE (filename, basename, stem)
         FROM extracted
-    """)
+        """
+    )
 
 
 @app.function
@@ -190,7 +191,6 @@ def _(Path, duckdb):
         if not paths:
             return empty_join_duckdb_relation(conn)
         base_rel = careful_read_json_files(conn, paths, format="newline_delimited")
-        conn.register("raw_jsonl", base_rel)
         return prep_artifact_relation(conn, base_rel, artifact_value, keep_doc_id=True)
     return (load_jsonl_artifact,)
 
@@ -205,9 +205,82 @@ def _(Path, duckdb):
         if not paths:
             return empty_join_duckdb_relation(conn)
         base_rel = careful_read_json_files(conn, paths, format="auto")
-        conn.register("raw_jsonl", base_rel)
         return prep_artifact_relation(conn, base_rel, artifact_value, keep_doc_id=False)
-    return
+    return (load_json_artifact,)
+
+
+@app.cell
+def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
+    def build_big_eval_df_for_results_dir_duckdb(
+        all_paths: dict[str, Path | list[Path]],
+    ) -> "pd.DataFrame":
+        import pandas as pd  # noqa: F401 - needed for mo display via DuckDB df
+
+        conn = duckdb.connect()
+
+        # Load every artifact family into DuckDB relations
+        rels = {}
+        for artifact in TaskArtifactType:
+            paths = all_paths.get(artifact.value, [])
+            if isinstance(paths, Path):
+                paths = [paths]
+            loader = (
+                load_json_artifact
+                if artifact in (TaskArtifactType.CONFIG, TaskArtifactType.METRICS)
+                else load_jsonl_artifact
+            )
+            rels[artifact] = loader(conn, paths, artifact.value)
+
+        preds_rel = rels[TaskArtifactType.PREDICTIONS]
+        conn.register("preds", preds_rel)
+
+        recs_rel = rels[TaskArtifactType.RECORDED_INPUTS]
+        conn.register("recs", recs_rel)
+
+        reqs_rel = rels[TaskArtifactType.REQUESTS]
+        if "idx" not in reqs_rel.columns:
+            conn.register("reqs_base", reqs_rel)
+            reqs_rel = conn.sql("SELECT reqs_base.*, CAST(NULL AS BIGINT) AS idx FROM reqs_base")
+        conn.register("reqs", reqs_rel)
+
+        cfg_rel = rels[TaskArtifactType.CONFIG]
+        conn.register("cfg", cfg_rel)
+
+        met_rel = rels[TaskArtifactType.METRICS]
+        conn.register("met", met_rel)
+
+        result_rel = conn.sql(
+            """
+            WITH doc_keys AS (
+                SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM preds
+                UNION
+                SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM recs
+                UNION
+                SELECT DISTINCT file_prefix, doc_id, idx FROM reqs
+            )
+            SELECT
+                dk.file_prefix,
+                dk.doc_id,
+                dk.idx,
+                preds.* EXCLUDE (file_prefix, doc_id),
+                recs.*  EXCLUDE (file_prefix, doc_id),
+                reqs.*  EXCLUDE (file_prefix, doc_id, idx),
+                cfg.*   EXCLUDE (file_prefix, doc_id),
+                met.*   EXCLUDE (file_prefix, doc_id)
+            FROM doc_keys dk
+            LEFT JOIN preds USING (file_prefix, doc_id)
+            LEFT JOIN recs  USING (file_prefix, doc_id)
+            LEFT JOIN reqs
+                ON reqs.file_prefix = dk.file_prefix
+               AND reqs.doc_id = dk.doc_id
+               AND reqs.idx IS NOT DISTINCT FROM dk.idx
+            LEFT JOIN cfg   USING (file_prefix)
+            LEFT JOIN met   USING (file_prefix)
+            """
+        )
+        return result_rel.df()
+
+    return (build_big_eval_df_for_results_dir_duckdb,)
 
 
 @app.cell(column=1)
@@ -252,13 +325,44 @@ def _(duckdb):
 
 
 @app.cell
-def _(Path, all_paths, conn, load_jsonl_artifact):
+def _(
+    TaskArtifactType,
+    all_paths,
+    conn,
+    load_json_artifact,
+    load_jsonl_artifact,
+):
+    print(f"Start Loading Artifacts from Dir: {all_paths['results_dir']}")
     sample_dfs = {}
     for atype, apaths in all_paths.items():
-        if not apaths or isinstance(apaths, str | Path):
+        if atype not in {t.value for t in TaskArtifactType} or not apaths:
             continue
-        sample_dfs[atype] = load_jsonl_artifact(conn, apaths, atype).df()
+
+        print(f">> Loading {atype}")
+        if apaths[0].suffix == ".jsonl":
+            sample_dfs[atype] = load_jsonl_artifact(conn, apaths, atype).df()
+        elif apaths[0].suffix == ".json":
+            sample_dfs[atype] = load_json_artifact(conn, apaths, atype).df()
+        else:
+            print(apaths[0], apaths[0].suffix)
+    return (sample_dfs,)
+
+
+@app.cell
+def _(mo, sample_dfs):
+    for _atype, _sdf in sample_dfs.items():
+        mo.output.append(mo.vstack([
+            mo.md(f"## {_atype}"),
+            _sdf
+        ]))
     return
+
+
+@app.cell
+def _(all_paths, build_big_eval_df_for_results_dir_duckdb):
+    combined_df = build_big_eval_df_for_results_dir_duckdb(all_paths)
+    combined_df.head()
+    return (combined_df,)
 
 
 @app.cell
