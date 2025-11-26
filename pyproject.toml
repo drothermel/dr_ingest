@@ -1,6 +1,6 @@
 [project]
 name = "dr-ingest"
-version = "0.1.4"
+version = "0.1.5"
 description = "Helpers for ingesting data."
 readme = "README.md"
 authors = [
