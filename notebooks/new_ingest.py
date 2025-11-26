@@ -14,6 +14,7 @@ def _():
     import marimo as mo
     import pandas as pd
     import duckdb
+    from uuid import UUID
 
     import dr_ingest.utils as du
     from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
@@ -28,7 +29,7 @@ def _():
     )
     notebook_dir = Path(__file__).parent if "__file__" in globals() else Path.cwd()
     error_log_path = notebook_dir / "new_ingest_cache_errors.log"
-    cache_root = paths.data_cache_dir / "new_ingest"
+    cache_root = paths.data_cache_dir / load_cfg.cache_subdir
     cache_root.mkdir(parents=True, exist_ok=True)
     cache_root
     return (
@@ -37,13 +38,14 @@ def _():
         LoadMetricsAllConfig,
         Path,
         TaskArtifactType,
+        UUID,
         cache_root,
         du,
         duckdb,
         error_log_path,
+        json,
         load_cfg,
         mo,
-        notebook_dir,
         paths,
         pd,
     )
@@ -245,19 +247,28 @@ def _(Path, duckdb):
 
 
 @app.cell
-def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
+def _(
+    LoadMetricsAllConfig,
+    Path,
+    TaskArtifactType,
+    UUID,
+    duckdb,
+    json,
+    load_json_artifact,
+    load_jsonl_artifact,
+    pd,
+):
     def build_big_eval_df_for_results_dir_duckdb(
         all_paths: dict[str, Path | list[Path]],
-        cache_dir: Path | None = None,
+        cache_dir: Path,
+        load_cfg: LoadMetricsAllConfig,
         force: bool = False,
         conn: duckdb.DuckDBPyConnection | None = None,
-    ) -> "pd.DataFrame":
-        import json
-        import pandas as pd
-
+    ) -> pd.DataFrame:
         results_dir = Path(all_paths["results_dir"])
-        cache_dir = Path(cache_dir) if cache_dir else Path("data/cache/new_ingest")
+        cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
+
         slug = results_dir.name
         parquet_path = cache_dir / f"{slug}.parquet"
         metadata_path = cache_dir / f"{slug}.json"
@@ -300,41 +311,21 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
         met_rel = rels[TaskArtifactType.METRICS]
         conn.register("met", met_rel)
 
-        prefix_map = {
-            TaskArtifactType.PREDICTIONS: "prd",
-            TaskArtifactType.RECORDED_INPUTS: "rin",
-            TaskArtifactType.REQUESTS: "req",
-            TaskArtifactType.CONFIG: "cfg",
-            TaskArtifactType.METRICS: "met",
-        }
-
-        skip_map = {
-            TaskArtifactType.PREDICTIONS: {"file_prefix", "doc_id", "idx"},
-            TaskArtifactType.RECORDED_INPUTS: {"file_prefix", "doc_id", "idx"},
-            TaskArtifactType.REQUESTS: {"file_prefix", "doc_id", "idx"},
-            TaskArtifactType.CONFIG: {"file_prefix", "doc_id"},
-            TaskArtifactType.METRICS: {"file_prefix", "doc_id"},
-        }
-
-        select_parts = [
-            "dk.file_prefix",
-            "dk.doc_id",
-            "dk.idx",
-        ]
+        select_parts = [*load_cfg.select_parts]
         select_parts += build_prefixed_column_aliases(
-            preds_rel.columns, "preds", prefix_map[TaskArtifactType.PREDICTIONS], skip_map[TaskArtifactType.PREDICTIONS]
+            preds_rel.columns, "preds", load_cfg.prefix_map[TaskArtifactType.PREDICTIONS], load_cfg.skip_map[TaskArtifactType.PREDICTIONS]
         )
         select_parts += build_prefixed_column_aliases(
-            recs_rel.columns, "recs", prefix_map[TaskArtifactType.RECORDED_INPUTS], skip_map[TaskArtifactType.RECORDED_INPUTS]
+            recs_rel.columns, "recs", load_cfg.prefix_map[TaskArtifactType.RECORDED_INPUTS], load_cfg.skip_map[TaskArtifactType.RECORDED_INPUTS]
         )
         select_parts += build_prefixed_column_aliases(
-            reqs_rel.columns, "reqs", prefix_map[TaskArtifactType.REQUESTS], skip_map[TaskArtifactType.REQUESTS]
+            reqs_rel.columns, "reqs", load_cfg.prefix_map[TaskArtifactType.REQUESTS], load_cfg.skip_map[TaskArtifactType.REQUESTS]
         )
         select_parts += build_prefixed_column_aliases(
-            cfg_rel.columns, "cfg", prefix_map[TaskArtifactType.CONFIG], skip_map[TaskArtifactType.CONFIG]
+            cfg_rel.columns, "cfg", load_cfg.prefix_map[TaskArtifactType.CONFIG], load_cfg.skip_map[TaskArtifactType.CONFIG]
         )
         select_parts += build_prefixed_column_aliases(
-            met_rel.columns, "met", prefix_map[TaskArtifactType.METRICS], skip_map[TaskArtifactType.METRICS]
+            met_rel.columns, "met", load_cfg.prefix_map[TaskArtifactType.METRICS], load_cfg.skip_map[TaskArtifactType.METRICS]
         )
 
         select_clause = ",\n                ".join(select_parts)
@@ -362,18 +353,19 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
             """
         )
 
-        from uuid import UUID
 
         combined_df = result_rel.df()
 
-        def _maybe_convert_uuid(value):
-            if isinstance(value, UUID):
-                return str(value)
-            return value
+        def _col_contains_uuid(series) -> bool:
+            try:
+                return series.map(lambda v: isinstance(v, UUID)).any()
+            except Exception:  # noqa: BLE001
+                return False
 
         for col in combined_df.columns:
-            if combined_df[col].dtype == "object":
-                combined_df[col] = combined_df[col].map(_maybe_convert_uuid)
+            series = combined_df[col]
+            if _col_contains_uuid(series):
+                combined_df[col] = series.map(lambda v: str(v) if isinstance(v, UUID) else v)
 
         def _stringify_paths(obj):
             if isinstance(obj, dict):
@@ -397,14 +389,14 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
 
 @app.cell(column=1)
 def _(
+    LoadMetricsAllConfig,
     build_big_eval_df_for_results_dir_duckdb,
     cache_root,
     collect_all_eval_paths,
     duckdb,
     error_log_path,
-    load_cfg,
 ):
-    def cache_all_eval_dirs(force: bool = False):
+    def cache_all_eval_dirs(load_cfg: LoadMetricsAllConfig, force: bool = False):
         from datetime import datetime
         import traceback
 
@@ -421,6 +413,7 @@ def _(
                         build_big_eval_df_for_results_dir_duckdb(
                             entry,
                             cache_dir=cache_root,
+                            load_cfg=load_cfg,
                             force=force,
                             conn=conn,
                         )
@@ -483,8 +476,8 @@ def _(duckdb):
 
 
 @app.cell
-def _(cache_all_eval_dirs):
-    cache_all_eval_dirs()
+def _(cache_all_eval_dirs, load_cfg):
+    cache_all_eval_dirs(load_cfg)
     return
 
 
@@ -492,7 +485,7 @@ def _(cache_all_eval_dirs):
 def _(clean_cached_results):
     deduped_df, deduped_path = clean_cached_results()
     deduped_path
-    return (deduped_df, deduped_path)
+    return (deduped_df,)
 
 
 @app.cell
