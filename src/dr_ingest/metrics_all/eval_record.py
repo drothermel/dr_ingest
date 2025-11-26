@@ -73,9 +73,9 @@ class EvalRecord(BaseModel):
         }
 
     @classmethod
-    def dedupe_by_task(cls, records: Iterable[Any]) -> list[EvalRecord]:
+    def dedupe_within_results_dir(cls, records: Iterable[Any]) -> list[EvalRecord]:
         seen_serialized: set[str] = set()
-        first_by_task: dict[str, EvalRecord] = {}
+        all_records = []
         for raw_record in records:
             if not isinstance(raw_record, dict):
                 raise ValueError(f"Expected dict, got {type(raw_record)}")
@@ -83,10 +83,8 @@ class EvalRecord(BaseModel):
             if serialized in seen_serialized:
                 continue
             seen_serialized.add(serialized)
-            candidate = cls.from_raw(raw_record)
-            if candidate.original_task_name not in first_by_task:
-                first_by_task[candidate.original_task_name] = candidate
-        return list(first_by_task.values())
+            all_records.append(cls.from_raw(raw_record))
+        return all_records
 
 
 @add_marimo_display()
@@ -146,7 +144,7 @@ class EvalRecordSet(BaseModel):
 
     def load(self) -> list[dict[str, Any]]:
         raw_records = srsly.read_jsonl(self.metrics_all_file)
-        deduped = EvalRecord.dedupe_by_task(raw_records)
+        deduped_in_dir = EvalRecord.dedupe_within_results_dir(raw_records)
         artifact_index = ArtifactIndex.build(self.results_dir, self.cfg)
         return [
             record.to_enriched_dict(
@@ -155,5 +153,5 @@ class EvalRecordSet(BaseModel):
                 metrics_all_path=self.metrics_all_file,
                 artifact_index=artifact_index,
             )
-            for record in deduped
+            for record in deduped_in_dir
         ]

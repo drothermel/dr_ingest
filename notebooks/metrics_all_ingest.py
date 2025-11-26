@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.17.7"
-app = marimo.App(width="medium")
+app = marimo.App(width="columns")
 
 with app.setup:
     import marimo as mo
@@ -12,7 +12,7 @@ with app.setup:
     from dr_ingest.metrics_all.load_results import load_all_results
 
     paths = Paths(
-        #metrics_all_dir="/Users/daniellerothermel/drotherm/data/datadec/2025-10-08_posttrain"
+        # metrics_all_dir="/Users/daniellerothermel/drotherm/data/datadec"
     )
 
 
@@ -37,17 +37,24 @@ def _():
 
 @app.cell
 def _(raw_records):
-    results_df = pd.DataFrame(raw_records)
+    df = pd.DataFrame(raw_records)
     mo.vstack(
         [
-            mo.md(f"Loaded {len(results_df)} records from `{paths.metrics_all_dir}`"),
-            results_df,
+            mo.md(f"Loaded {len(df)} records from `{paths.metrics_all_dir}`"),
+            df,
         ]
     )
+    return (df,)
+
+
+@app.cell(column=1)
+def _(df):
+    popqa_df = df[(df['task_name'].str.contains("popqa")) & (df["eval_results_path"].str.contains("8B"))]
+    popqa_df
     return
 
 
-@app.cell
+@app.cell(column=2)
 def _():
     return
 
