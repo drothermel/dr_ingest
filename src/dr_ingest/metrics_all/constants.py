@@ -13,6 +13,7 @@ class LoadMetricsAllConfig(BaseModel):
 
     root_paths: list[Path]
     results_filename: str = "metrics-all.jsonl"
+
     task_file_prefix: str = "task-"
     task_idx_width: int = 3
     stem_separator: str = "-"

@@ -146,6 +146,9 @@ ignore = [
 ]
 "notebook/**/*.py" = [
     "ANN001",               # Allow marimo notebooks to not have anns
+    "ANN202",
+    "INP001",
+    "B018",
     "E402",                 # Import order OK in notebooks
     "F401",                 # Unused imports OK in notebooks
 ]

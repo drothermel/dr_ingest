@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
@@ -8,6 +10,8 @@ def iter_file_glob_from_roots(
     root_paths: Iterable[Path | str],
     file_glob: str,
 ) -> Iterator[Path]:
+    if isinstance(root_paths, Path | str):
+        root_paths = [root_paths]
     for path in root_paths:
         root = Path(path)
         if not root.exists():
