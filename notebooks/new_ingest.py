@@ -403,7 +403,7 @@ def _(
         finally:
             conn.close()
         return cached
-    return
+    return (cache_all_eval_dirs,)
 
 
 @app.cell
@@ -439,7 +439,7 @@ def _(Path, cache_root):
         output_path = cache_dir / output_name
         deduped.to_parquet(output_path, index=False)
         return deduped, output_path
-    return
+    return (clean_cached_results,)
 
 
 @app.cell
@@ -449,12 +449,21 @@ def _(duckdb):
 
 
 @app.cell
-def _():
+def _(cache_all_eval_dirs):
+    cache_all_eval_dirs()
     return
 
 
-@app.cell(column=2)
-def _():
+@app.cell
+def _(clean_cached_results):
+    deduped_df, deduped_path = clean_cached_results()
+    deduped_path
+    return (deduped_df,)
+
+
+@app.cell
+def _(deduped_df):
+    deduped_df.head()
     return
 
 
