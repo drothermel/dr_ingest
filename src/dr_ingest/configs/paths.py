@@ -28,9 +28,7 @@ class Paths(BaseModel):
         default_factory=lambda data: data["data_dir"] / "cache"
     )
     metrics_all_dir: Path = Field(
-        default_factory=lambda data: data["data_dir"]
-        / "datadec"
-        / "2025-10-08_posttrain"
+        default_factory=lambda data: data["data_dir"] / "datadec"
     )
 
     @model_validator(mode="before")

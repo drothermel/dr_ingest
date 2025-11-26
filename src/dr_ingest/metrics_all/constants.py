@@ -23,6 +23,24 @@ class LoadMetricsAllConfig(BaseModel):
             TaskArtifactType.REQUESTS: "-requests.jsonl",
         }
     )
+    path_cols: list[str] = Field(
+        default_factory=lambda: [
+            "result_dir",
+            "eval_results_path",
+            "predictions",
+            "recorded_inputs",
+            "requests",
+        ]
+    )
+    dict_cols: list[str] = Field(
+        default_factory=lambda: [
+            "beaker_info",
+            "model_config",
+            "task_config",
+            "compute_config",
+            "metrics",
+        ]
+    )
 
     @field_validator("root_paths", mode="before")
     def validate_root_paths(cls, value: Any) -> list[Path]:
