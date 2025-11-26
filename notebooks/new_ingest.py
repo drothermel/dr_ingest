@@ -367,6 +367,12 @@ def _(
             if _col_contains_uuid(series):
                 combined_df[col] = series.map(lambda v: str(v) if isinstance(v, UUID) else v)
 
+        def _force_object_to_string(df):
+            for col in df.columns:
+                if df[col].dtype == "object":
+                    df[col] = df[col].astype("string").fillna(pd.NA)
+            return df
+
         def _stringify_paths(obj):
             if isinstance(obj, dict):
                 return {k: _stringify_paths(v) for k, v in obj.items()}
@@ -377,7 +383,11 @@ def _(
             return obj
 
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        combined_df.to_parquet(parquet_path, index=False)
+        try:
+            combined_df.to_parquet(parquet_path, index=False)
+        except Exception:
+            combined_df = _force_object_to_string(combined_df)
+            combined_df.to_parquet(parquet_path, index=False)
         metadata_path.write_text(json.dumps(_stringify_paths(all_paths), indent=2))
 
         if close_conn:
