@@ -10,14 +10,17 @@ class TaskArtifactType(StrEnum):
 
     @property
     def extension(self) -> str:
-        mapping = {
-            TaskArtifactType.PREDICTIONS: "jsonl",
-            TaskArtifactType.RECORDED_INPUTS: "jsonl",
-            TaskArtifactType.REQUESTS: "jsonl",
-            TaskArtifactType.CONFIG: "json",
-            TaskArtifactType.METRICS: "json",
-        }
-        return mapping[self]
+        match self:
+            case (
+                TaskArtifactType.PREDICTIONS
+                | TaskArtifactType.RECORDED_INPUTS
+                | TaskArtifactType.REQUESTS
+            ):
+                return "jsonl"
+            case TaskArtifactType.CONFIG | TaskArtifactType.METRICS:
+                return "json"
+            case _:
+                raise ValueError(f"Invalid task artifact type: {self}")
 
     @property
     def filename_pattern(self) -> str:
