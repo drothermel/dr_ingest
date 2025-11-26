@@ -21,11 +21,13 @@ def _():
     from dr_ingest.configs.paths import Paths
 
     paths = Paths(
-        metrics_all_dir="/Users/daniellerothermel/drotherm/data/datadec/",
+        metrics_all_dir="/Users/daniellerothermel/drotherm/data/datadec/2025-11-03_posttrain/",
     )
     load_cfg = LoadMetricsAllConfig(
         root_paths=[paths.metrics_all_dir],
     )
+    notebook_dir = Path(__file__).parent if "__file__" in globals() else Path.cwd()
+    error_log_path = notebook_dir / "new_ingest_cache_errors.log"
     cache_root = paths.data_cache_dir / "new_ingest"
     cache_root.mkdir(parents=True, exist_ok=True)
     cache_root
@@ -38,8 +40,10 @@ def _():
         cache_root,
         du,
         duckdb,
+        error_log_path,
         load_cfg,
         mo,
+        notebook_dir,
         paths,
         pd,
     )
@@ -268,6 +272,7 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
         rels = {}
         for artifact in TaskArtifactType:
             paths = all_paths.get(artifact.value, [])
+            print(f">> - loading {artifact}: {len(paths)} files")
             if isinstance(paths, Path):
                 paths = [paths]
             loader = (
@@ -357,7 +362,18 @@ def _(Path, TaskArtifactType, duckdb, load_json_artifact, load_jsonl_artifact):
             """
         )
 
+        from uuid import UUID
+
         combined_df = result_rel.df()
+
+        def _maybe_convert_uuid(value):
+            if isinstance(value, UUID):
+                return str(value)
+            return value
+
+        for col in combined_df.columns:
+            if combined_df[col].dtype == "object":
+                combined_df[col] = combined_df[col].map(_maybe_convert_uuid)
 
         def _stringify_paths(obj):
             if isinstance(obj, dict):
@@ -385,21 +401,39 @@ def _(
     cache_root,
     collect_all_eval_paths,
     duckdb,
+    error_log_path,
     load_cfg,
 ):
     def cache_all_eval_dirs(force: bool = False):
+        from datetime import datetime
+        import traceback
+
+        print(":: Start Cache All Eval Dirs ::")
         conn = duckdb.connect()
         cached = []
         try:
             for entry in collect_all_eval_paths(load_cfg):
-                cached.append(
-                    build_big_eval_df_for_results_dir_duckdb(
-                        entry,
-                        cache_dir=cache_root,
-                        force=force,
-                        conn=conn,
+                results_dir = (entry or {}).get("results_dir")
+                print()
+                print(f">> Loading artifacts from dir: {results_dir}")
+                try:
+                    cached.append(
+                        build_big_eval_df_for_results_dir_duckdb(
+                            entry,
+                            cache_dir=cache_root,
+                            force=force,
+                            conn=conn,
+                        )
                     )
-                )
+                except Exception as exc:  # noqa: BLE001
+                    timestamp = datetime.now().isoformat()
+                    log_message = (
+                        f"[{timestamp}] Failed for {results_dir}: {exc}\n"
+                        f"{traceback.format_exc()}\n"
+                    )
+                    with error_log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(log_message)
+                    print(f"!! Error logged for {results_dir}. Continuing...")
         finally:
             conn.close()
         return cached
@@ -407,14 +441,14 @@ def _(
 
 
 @app.cell
-def _(Path, cache_root):
+def _(Path, cache_root, pd):
     def clean_cached_results(
         cache_dir: Path = cache_root,
         drop_columns: set[str] | None = None,
         output_name: str = "deduped.parquet",
     ):
-        import pandas as pd
-
+        print()
+        print(":: Start Clean Cached Results ::")
         cache_dir = Path(cache_dir)
         parquet_files = sorted(cache_dir.glob("*.parquet"))
         if not parquet_files:
@@ -458,7 +492,7 @@ def _(cache_all_eval_dirs):
 def _(clean_cached_results):
     deduped_df, deduped_path = clean_cached_results()
     deduped_path
-    return (deduped_df,)
+    return (deduped_df, deduped_path)
 
 
 @app.cell
