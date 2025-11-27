@@ -28,6 +28,7 @@ dependencies = [
 [project.scripts]
 ingest-parse-train = "dr_ingest.cli.parse_train:app"
 ingest-parse-scaling = "dr_ingest.cli.parse_scaling_laws:app"
+ingest-datadec = "dr_ingest.cli.datadec_ingest:app"
 
 [build-system]
 requires = ["hatchling"]

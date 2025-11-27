@@ -482,25 +482,24 @@ def _(Path, cache_root, pd):
 @app.cell
 def _(duckdb):
     conn = duckdb.connect()
-    return
+    return (conn,)
 
 
-@app.cell
-def _(cache_all_eval_dirs, load_cfg):
-    cache_all_eval_dirs(load_cfg)
-    return
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## CLI ingestion
 
+    To run the full pipeline without exhausting notebook memory, use the CLI:
 
-@app.cell
-def _(clean_cached_results):
-    deduped_df, deduped_path = clean_cached_results()
-    deduped_path
-    return (deduped_df,)
+    ```bash
+    uv run ingest-datadec cache --metrics-dir <metrics_dir> --cache-dir <cache_dir>
+    uv run ingest-datadec dedupe --cache-dir <cache_dir>
+    ```
 
-
-@app.cell
-def _(deduped_df):
-    deduped_df.head()
+    The CLI reuses the same helpers defined above but streams each directory in a
+    fresh DuckDB process, writing straight to parquet.
+    """)
     return
 
 
