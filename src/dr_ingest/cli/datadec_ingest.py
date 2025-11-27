@@ -67,6 +67,10 @@ def cache(
         "8GB",
         help="DuckDB memory limit (e.g., '8GB'); data beyond this spills to disk",
     ),
+    threads: int = typer.Option(
+        2,
+        help="Maximum DuckDB threads per directory (set <= CPU cores)",
+    ),
 ):
     """Stream each eval directory into a cached parquet file."""
 
@@ -119,8 +123,10 @@ def cache(
                 config={
                     "memory_limit": memory_limit,
                     "temp_directory": str(spill_dir),
+                    "threads": str(max(1, threads)),
                 }
             ) as conn:
+                conn.execute("PRAGMA preserve_insertion_order=false;")
                 export_eval_dir_to_parquet(
                     conn,
                     entry,
