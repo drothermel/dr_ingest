@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+from duckdb.typing import VARCHAR
 
 import dr_ingest.utils as du
 from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
@@ -20,6 +21,8 @@ DOC_ARTIFACT_TYPES = (
     TaskArtifactType.RECORDED_INPUTS,
     TaskArtifactType.REQUESTS,
 )
+
+JSON_SERIALIZED_COLUMNS = {"metrics"}
 
 
 def collect_all_eval_paths(config: LoadMetricsAllConfig) -> list[dict[str, Any]]:
@@ -56,6 +59,7 @@ def sanitize_column_name(name: str) -> str:
 
 def build_prefixed_column_aliases(
     columns: Iterable[str],
+    column_types: Iterable[Any],
     table_alias: str,
     prefix: str,
     skip_cols: Iterable[str] = (),
@@ -63,12 +67,22 @@ def build_prefixed_column_aliases(
     skip = set(skip_cols)
     prefix = prefix.rstrip("_") + "_"
     aliases: list[str] = []
-    for col in columns:
+    for col, col_type in zip(columns, column_types):
         if col in skip:
             continue
         escaped = col.replace('"', '""')
         safe_col = sanitize_column_name(col)
-        aliases.append(f'{table_alias}."{escaped}" AS {prefix}{safe_col}')
+        expr = f'{table_alias}."{escaped}"'
+        if isinstance(col_type, str):
+            dtype = col_type.upper()
+        else:
+            dtype = str(col_type).upper()
+        if col in JSON_SERIALIZED_COLUMNS:
+            expr = f"to_json({expr})"
+            dtype = "JSON"
+        if dtype == "JSON":
+            expr = f"CAST({expr} AS VARCHAR)"
+        aliases.append(f"{expr} AS {prefix}{safe_col}")
     return aliases
 
 
@@ -188,24 +202,28 @@ def _build_select_clause(
     select_parts: list[str] = ["dk.file_prefix", "dk.doc_id", "dk.idx"]
     select_parts += build_prefixed_column_aliases(
         preds_rel.columns,
+        preds_rel.types,
         "preds",
         prefix_map[TaskArtifactType.PREDICTIONS],
         skip_map[TaskArtifactType.PREDICTIONS],
     )
     select_parts += build_prefixed_column_aliases(
         recs_rel.columns,
+        recs_rel.types,
         "recs",
         prefix_map[TaskArtifactType.RECORDED_INPUTS],
         skip_map[TaskArtifactType.RECORDED_INPUTS],
     )
     select_parts += build_prefixed_column_aliases(
         reqs_rel.columns,
+        reqs_rel.types,
         "reqs",
         prefix_map[TaskArtifactType.REQUESTS],
         skip_map[TaskArtifactType.REQUESTS],
     )
     select_parts += build_prefixed_column_aliases(
         met_rel.columns,
+        met_rel.types,
         "met",
         prefix_map[TaskArtifactType.METRICS],
         skip_map[TaskArtifactType.METRICS],
@@ -405,8 +423,10 @@ def clean_cached_results(
     if not parquet_files:
         raise FileNotFoundError(f"No parquet files found in {cache_dir}")
 
-    rel = conn.read_parquet([str(p) for p in parquet_files])
-    conn.register("cached_runs", rel)
+    rel = conn.read_parquet(
+        [str(p) for p in parquet_files],
+        union_by_name=True,
+    )
     columns = rel.columns
     has_config = "met_task_config" in columns
     if has_config:
@@ -425,7 +445,7 @@ def clean_cached_results(
         conn.create_function(
             "normalize_config",
             _normalize_config,
-            return_type=duckdb.TEXT,
+            return_type=VARCHAR,
         )
 
     drop_set = set(drop_columns or {"file_prefix", "task_name"})
@@ -437,6 +457,15 @@ def clean_cached_results(
     keep_columns = [col for col in columns if col not in drop_candidates]
     if not keep_columns:
         raise ValueError("No columns left after dropping path-related fields")
+
+    required_cols = set(keep_columns)
+    required_cols.add("file_prefix")
+    if has_config:
+        required_cols.add("met_task_config")
+    projection_expr = ", ".join(f'"{c}"' for c in required_cols)
+    rel = rel.project(projection_expr)
+    conn.register("cached_runs", rel)
+    columns = rel.columns
 
     projection = ", ".join(f'"{c}"' for c in keep_columns)
     escaped_out = str(cache_dir / output_name).replace("'", "''")
