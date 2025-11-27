@@ -226,10 +226,12 @@ def export_eval_dir_to_parquet(
     cache_dir: Path,
     *,
     force: bool = False,
+    doc_id_value: int | None = None,
+    slug_override: str | None = None,
 ) -> Path:
     cache_dir.mkdir(parents=True, exist_ok=True)
     results_dir = Path(entry["results_dir"])
-    slug = results_dir.name
+    slug = slug_override or results_dir.name
     parquet_path = cache_dir / f"{slug}.parquet"
     metadata_path = cache_dir / f"{slug}.json"
 
@@ -263,13 +265,24 @@ def export_eval_dir_to_parquet(
         met_rel,
     )
 
+    doc_filter = (
+        ""
+        if doc_id_value is None
+        else f" WHERE doc_id = {doc_id_value}"
+    )
+    req_filter = (
+        ""
+        if doc_id_value is None
+        else f" WHERE doc_id = {doc_id_value}"
+    )
+
     select_sql = f"""
         WITH doc_keys AS (
-            SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM preds
+            SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM preds{doc_filter}
             UNION
-            SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM recs
+            SELECT DISTINCT file_prefix, doc_id, CAST(NULL AS BIGINT) AS idx FROM recs{doc_filter}
             UNION
-            SELECT DISTINCT file_prefix, doc_id, idx FROM reqs
+            SELECT DISTINCT file_prefix, doc_id, idx FROM reqs{req_filter}
         )
         SELECT
             {select_clause}
@@ -297,7 +310,10 @@ def export_eval_dir_to_parquet(
             return str(obj)
         return obj
 
-    metadata_path.write_text(json.dumps(_stringify(entry), indent=2))
+    metadata = _stringify(entry)
+    if doc_id_value is not None:
+        metadata = {**metadata, "doc_id_filter": doc_id_value}
+    metadata_path.write_text(json.dumps(metadata, indent=2))
 
     for name in ("preds", "recs", "reqs", "cfg", "met", "reqs_base"):
         with suppress(Exception):

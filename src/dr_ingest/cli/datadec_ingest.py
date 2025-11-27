@@ -55,6 +55,18 @@ def cache(
         None,
         help="Path to append ingestion errors (default cache_dir/ingest_errors.log)",
     ),
+    doc_id: Optional[int] = typer.Option(
+        None,
+        help="If provided, only materialize rows with this doc_id",
+    ),
+    slug_prefix: str = typer.Option(
+        "",
+        help="Prefix to prepend to each output slug (e.g., 'nov03_')",
+    ),
+    memory_limit: str = typer.Option(
+        "8GB",
+        help="DuckDB memory limit (e.g., '8GB'); data beyond this spills to disk",
+    ),
 ):
     """Stream each eval directory into a cached parquet file."""
 
@@ -81,22 +93,41 @@ def cache(
     skipped = 0
     for entry in entries:
         results_path = Path(entry["results_dir"])
-        parquet_path = cache_dir / f"{results_path.name}.parquet"
-        metadata_path = cache_dir / f"{results_path.name}.json"
+        try:
+            relative = results_path.relative_to(metrics_dir)
+            relative_slug = str(relative).strip("/") or results_path.name
+        except ValueError:
+            relative_slug = results_path.name
+
+        safe_slug = slug_prefix + relative_slug.replace("/", "__")
+        if doc_id is not None:
+            safe_slug = f"{safe_slug}__doc{doc_id}"
+        parquet_path = cache_dir / f"{safe_slug}.parquet"
+        metadata_path = cache_dir / f"{safe_slug}.json"
 
         if parquet_path.exists() and metadata_path.exists() and not force:
-            typer.echo(f"-> Skipping {results_path} (already cached)")
+            typer.echo(f"-> Skipping {results_path} (already cached as {safe_slug})")
             skipped += 1
             continue
 
-        typer.echo(f"-> Processing {results_path}")
+        typer.echo(f"-> Processing {results_path} -> {safe_slug}")
+        spill_dir = cache_dir / "spill"
+        spill_dir.mkdir(parents=True, exist_ok=True)
+
         try:
-            with duckdb.connect() as conn:
+            with duckdb.connect(
+                config={
+                    "memory_limit": memory_limit,
+                    "temp_directory": str(spill_dir),
+                }
+            ) as conn:
                 export_eval_dir_to_parquet(
                     conn,
                     entry,
                     cache_dir,
                     force=force,
+                    doc_id_value=doc_id,
+                    slug_override=safe_slug,
                 )
             processed += 1
         except Exception as exc:  # noqa: BLE001
