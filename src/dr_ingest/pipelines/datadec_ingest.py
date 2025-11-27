@@ -15,6 +15,13 @@ from dr_ingest.metrics_all.constants import LoadMetricsAllConfig
 from dr_ingest.types import TaskArtifactType
 
 
+DOC_ARTIFACT_TYPES = (
+    TaskArtifactType.PREDICTIONS,
+    TaskArtifactType.RECORDED_INPUTS,
+    TaskArtifactType.REQUESTS,
+)
+
+
 def collect_all_eval_paths(config: LoadMetricsAllConfig) -> list[dict[str, Any]]:
     all_paths: list[dict[str, Any]] = []
     for metrics_all_path in du.iter_file_glob_from_roots(
@@ -32,7 +39,7 @@ def collect_all_eval_paths(config: LoadMetricsAllConfig) -> list[dict[str, Any]]
                         results_dir, file_glob=t.filename_pattern
                     )
                 )
-                for t in TaskArtifactType
+                for t in DOC_ARTIFACT_TYPES
             }
         )
         all_paths.append(entry)
@@ -151,16 +158,11 @@ def _register_relations(
     all_paths: dict[str, Any],
 ) -> dict[TaskArtifactType, duckdb.DuckDBPyRelation]:
     rels: dict[TaskArtifactType, duckdb.DuckDBPyRelation] = {}
-    for artifact in TaskArtifactType:
+    for artifact in DOC_ARTIFACT_TYPES:
         paths = all_paths.get(artifact.value, [])
         if isinstance(paths, Path):
             paths = [paths]
-        loader = (
-            load_json_artifact
-            if artifact in (TaskArtifactType.CONFIG, TaskArtifactType.METRICS)
-            else load_jsonl_artifact
-        )
-        rels[artifact] = loader(conn, paths, artifact.value)
+        rels[artifact] = load_jsonl_artifact(conn, paths, artifact.value)
     return rels
 
 
@@ -168,21 +170,18 @@ def _build_select_clause(
     preds_rel,
     recs_rel,
     reqs_rel,
-    cfg_rel,
     met_rel,
 ) -> str:
     prefix_map = {
         TaskArtifactType.PREDICTIONS: "prd",
         TaskArtifactType.RECORDED_INPUTS: "rin",
         TaskArtifactType.REQUESTS: "req",
-        TaskArtifactType.CONFIG: "cfg",
         TaskArtifactType.METRICS: "met",
     }
     skip_map = {
         TaskArtifactType.PREDICTIONS: {"file_prefix", "doc_id", "idx"},
         TaskArtifactType.RECORDED_INPUTS: {"file_prefix", "doc_id", "idx"},
         TaskArtifactType.REQUESTS: {"file_prefix", "doc_id", "idx"},
-        TaskArtifactType.CONFIG: {"file_prefix", "doc_id"},
         TaskArtifactType.METRICS: {"file_prefix", "doc_id"},
     }
 
@@ -206,18 +205,91 @@ def _build_select_clause(
         skip_map[TaskArtifactType.REQUESTS],
     )
     select_parts += build_prefixed_column_aliases(
-        cfg_rel.columns,
-        "cfg",
-        prefix_map[TaskArtifactType.CONFIG],
-        skip_map[TaskArtifactType.CONFIG],
-    )
-    select_parts += build_prefixed_column_aliases(
         met_rel.columns,
         "met",
         prefix_map[TaskArtifactType.METRICS],
         skip_map[TaskArtifactType.METRICS],
     )
     return ",\n                ".join(select_parts)
+
+
+def _empty_meta_relation(conn: duckdb.DuckDBPyConnection) -> duckdb.DuckDBPyRelation:
+    return conn.sql("SELECT CAST(NULL AS VARCHAR) AS file_prefix WHERE 0=1")
+
+
+def _load_metrics_all_relation(
+    conn: duckdb.DuckDBPyConnection,
+    metrics_all_path: Path | None,
+) -> duckdb.DuckDBPyRelation | None:
+    if not metrics_all_path or not metrics_all_path.exists():
+        return None
+    return careful_read_json_files(
+        conn,
+        [metrics_all_path],
+        fmt="newline_delimited",
+    )
+
+
+def _build_task_name_map(conn: duckdb.DuckDBPyConnection) -> duckdb.DuckDBPyRelation:
+    return conn.sql(
+        """
+        WITH prefixes AS (
+            SELECT file_prefix FROM preds
+            UNION
+            SELECT file_prefix FROM recs
+            UNION
+            SELECT file_prefix FROM reqs
+        ),
+        named AS (
+            SELECT
+                file_prefix,
+                max(task_name) AS task_name
+            FROM (
+                SELECT file_prefix, task_name FROM recs WHERE task_name IS NOT NULL
+                UNION ALL
+                SELECT file_prefix, task_name FROM reqs WHERE task_name IS NOT NULL
+            )
+            GROUP BY file_prefix
+        )
+        SELECT
+            prefixes.file_prefix,
+            COALESCE(
+                named.task_name,
+                regexp_replace(prefixes.file_prefix, '^task-\\d+-', '')
+            ) AS task_name
+        FROM prefixes
+        LEFT JOIN named USING (file_prefix)
+        """
+    )
+
+
+def _build_metrics_relation(
+    conn: duckdb.DuckDBPyConnection,
+    metrics_all_path: Path | None,
+    task_name_map: duckdb.DuckDBPyRelation,
+) -> duckdb.DuckDBPyRelation:
+    raw_rel = _load_metrics_all_relation(conn, metrics_all_path)
+    if raw_rel is None:
+        return _empty_meta_relation(conn)
+    conn.register("metrics_all_raw", raw_rel)
+    conn.register("task_name_map", task_name_map)
+    try:
+        return conn.sql(
+            """
+            SELECT
+                task_name_map.file_prefix,
+                metrics_all_raw.*
+            FROM metrics_all_raw
+            LEFT JOIN task_name_map
+              ON task_name_map.task_name = metrics_all_raw.task_name
+            WHERE task_name_map.file_prefix IS NOT NULL
+            """
+        )
+    finally:
+        with suppress(Exception):
+            conn.unregister("metrics_all_raw")
+        with suppress(Exception):
+            conn.unregister("task_name_map")
 
 
 def export_eval_dir_to_parquet(
@@ -243,9 +315,6 @@ def export_eval_dir_to_parquet(
     preds_rel = rels[TaskArtifactType.PREDICTIONS]
     recs_rel = rels[TaskArtifactType.RECORDED_INPUTS]
     reqs_rel = rels[TaskArtifactType.REQUESTS]
-    cfg_rel = rels[TaskArtifactType.CONFIG]
-    met_rel = rels[TaskArtifactType.METRICS]
-
     conn.register("preds", preds_rel)
     conn.register("recs", recs_rel)
     if "idx" not in reqs_rel.columns:
@@ -254,14 +323,16 @@ def export_eval_dir_to_parquet(
             "SELECT reqs_base.*, CAST(NULL AS BIGINT) AS idx FROM reqs_base"
         )
     conn.register("reqs", reqs_rel)
-    conn.register("cfg", cfg_rel)
+
+    task_name_map_rel = _build_task_name_map(conn)
+    metrics_all_path = entry.get("metrics-all")
+    met_rel = _build_metrics_relation(conn, metrics_all_path, task_name_map_rel)
     conn.register("met", met_rel)
 
     select_clause = _build_select_clause(
         preds_rel,
         recs_rel,
         reqs_rel,
-        cfg_rel,
         met_rel,
     )
 
@@ -293,7 +364,6 @@ def export_eval_dir_to_parquet(
             ON reqs.file_prefix = dk.file_prefix
            AND reqs.doc_id = dk.doc_id
            AND reqs.idx IS NOT DISTINCT FROM dk.idx
-        LEFT JOIN cfg USING (file_prefix)
         LEFT JOIN met USING (file_prefix)
     """
 
@@ -315,7 +385,7 @@ def export_eval_dir_to_parquet(
         metadata = {**metadata, "doc_id_filter": doc_id_value}
     metadata_path.write_text(json.dumps(metadata, indent=2))
 
-    for name in ("preds", "recs", "reqs", "cfg", "met", "reqs_base"):
+    for name in ("preds", "recs", "reqs", "met", "reqs_base"):
         with suppress(Exception):
             conn.unregister(name)
 
