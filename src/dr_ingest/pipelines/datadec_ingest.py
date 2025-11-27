@@ -267,29 +267,27 @@ def _build_metrics_relation(
     conn: duckdb.DuckDBPyConnection,
     metrics_all_path: Path | None,
     task_name_map: duckdb.DuckDBPyRelation,
-) -> duckdb.DuckDBPyRelation:
+) -> tuple[duckdb.DuckDBPyRelation, list[str]]:
+    cleanup: list[str] = []
     raw_rel = _load_metrics_all_relation(conn, metrics_all_path)
-    if raw_rel is None:
-        return _empty_meta_relation(conn)
+    if raw_rel is None or "task_name" not in raw_rel.columns:
+        return _empty_meta_relation(conn), cleanup
     conn.register("metrics_all_raw", raw_rel)
+    cleanup.append("metrics_all_raw")
     conn.register("task_name_map", task_name_map)
-    try:
-        return conn.sql(
-            """
-            SELECT
-                task_name_map.file_prefix,
-                metrics_all_raw.*
-            FROM metrics_all_raw
-            LEFT JOIN task_name_map
-              ON task_name_map.task_name = metrics_all_raw.task_name
-            WHERE task_name_map.file_prefix IS NOT NULL
-            """
-        )
-    finally:
-        with suppress(Exception):
-            conn.unregister("metrics_all_raw")
-        with suppress(Exception):
-            conn.unregister("task_name_map")
+    cleanup.append("task_name_map")
+    rel = conn.sql(
+        """
+        SELECT
+            task_name_map.file_prefix,
+            metrics_all_raw.*
+        FROM metrics_all_raw
+        LEFT JOIN task_name_map
+          ON task_name_map.task_name = metrics_all_raw.task_name
+        WHERE task_name_map.file_prefix IS NOT NULL
+        """
+    )
+    return rel, cleanup
 
 
 def export_eval_dir_to_parquet(
@@ -326,7 +324,9 @@ def export_eval_dir_to_parquet(
 
     task_name_map_rel = _build_task_name_map(conn)
     metrics_all_path = entry.get("metrics-all")
-    met_rel = _build_metrics_relation(conn, metrics_all_path, task_name_map_rel)
+    met_rel, meta_cleanup = _build_metrics_relation(
+        conn, metrics_all_path, task_name_map_rel
+    )
     conn.register("met", met_rel)
 
     select_clause = _build_select_clause(
@@ -385,7 +385,8 @@ def export_eval_dir_to_parquet(
         metadata = {**metadata, "doc_id_filter": doc_id_value}
     metadata_path.write_text(json.dumps(metadata, indent=2))
 
-    for name in ("preds", "recs", "reqs", "met", "reqs_base"):
+    cleanup_names = ["preds", "recs", "reqs", "met", "reqs_base", *meta_cleanup]
+    for name in cleanup_names:
         with suppress(Exception):
             conn.unregister(name)
 
@@ -407,6 +408,25 @@ def clean_cached_results(
     rel = conn.read_parquet([str(p) for p in parquet_files])
     conn.register("cached_runs", rel)
     columns = rel.columns
+    has_config = "met_task_config" in columns
+    if has_config:
+        def _normalize_config(value):
+            if value is None:
+                return None
+            if isinstance(value, dict):
+                filtered = {k: value[k] for k in value if k != "task_name"}
+            else:
+                filtered = value
+            try:
+                return json.dumps(filtered, sort_keys=True)
+            except TypeError:
+                return json.dumps(filtered, sort_keys=True, default=str)
+
+        conn.create_function(
+            "normalize_config",
+            _normalize_config,
+            return_type=duckdb.TEXT,
+        )
 
     drop_set = set(drop_columns or {"file_prefix", "task_name"})
     drop_candidates = {
@@ -420,9 +440,34 @@ def clean_cached_results(
 
     projection = ", ".join(f'"{c}"' for c in keep_columns)
     escaped_out = str(cache_dir / output_name).replace("'", "''")
-    conn.sql(
-        f"COPY (SELECT DISTINCT {projection} FROM cached_runs) TO '{escaped_out}' (FORMAT PARQUET);"
-    )
+    if has_config:
+        copy_sql = f"""
+            COPY (
+                WITH base AS (
+                    SELECT
+                        cached_runs.*,
+                        normalize_config(met_task_config) AS met_task_config_key
+                    FROM cached_runs
+                ),
+                ranked AS (
+                    SELECT
+                        base.*,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY met_task_config_key
+                            ORDER BY file_prefix
+                        ) AS cfg_rank
+                    FROM base
+                )
+                SELECT DISTINCT {projection}
+                FROM ranked
+                WHERE met_task_config_key IS NULL OR cfg_rank = 1
+            ) TO '{escaped_out}' (FORMAT PARQUET)
+        """
+    else:
+        copy_sql = (
+            f"COPY (SELECT DISTINCT {projection} FROM cached_runs) TO '{escaped_out}' (FORMAT PARQUET)"
+        )
+    conn.sql(copy_sql)
 
     with suppress(Exception):
         conn.unregister("cached_runs")
