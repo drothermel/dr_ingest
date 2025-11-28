@@ -22,7 +22,17 @@ DOC_ARTIFACT_TYPES = (
     TaskArtifactType.REQUESTS,
 )
 
-JSON_SERIALIZED_COLUMNS = {"metrics"}
+JSON_SERIALIZED_COLUMNS = {
+    "metrics",
+    "model_output",
+    "doc",
+    "request",
+    "requests",
+    "model_config",
+    "task_config",
+    "compute_config",
+    "beaker_info",
+}
 
 
 def collect_all_eval_paths(config: LoadMetricsAllConfig) -> list[dict[str, Any]]:

@@ -39,3 +39,4 @@ Context below is based on the directory `/Users/daniellerothermel/drotherm/data/
 1. `metrics-all.jsonl` is the canonical source: every per-task `*-metrics.json` object and `*-config.json` object is directly derivable from it, so storing all three is redundant.
 2. Aggregate tasks only exist in `metrics-all.jsonl`; relying on per-task folders would miss those cross-task scores.
 3. Other per-task artifacts (`predictions`, `recorded-inputs`, `requests`) contain additional row-level data not represented in the metrics files, so they remain necessary when analyzing individual examples.
+4. The ingest cache now serializes nested objects such as `doc`, `request`, `requests`, `model_output`, `metrics`, and the various `*_config` maps into JSON strings before writing Parquet so DuckDB sees consistent `VARCHAR` types across dumps; downstream consumers should `json.loads` these columns if they need the structured payloads.
