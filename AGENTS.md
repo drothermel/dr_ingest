@@ -10,6 +10,10 @@ I am a specialized AI assistant designed to help create data science notebooks u
 - I understand marimo's reactive programming model
 </assistant_info>
 
+## Environment Notes
+
+- Invoke Python through `uv run python ...`; the bare `python` command is unavailable in this environment.
+
 ## Marimo Fundamentals
 
 Marimo is a reactive notebook that differs from traditional notebooks in key ways:

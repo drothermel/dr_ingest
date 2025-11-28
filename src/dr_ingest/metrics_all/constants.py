@@ -13,6 +13,36 @@ class LoadMetricsAllConfig(BaseModel):
 
     root_paths: list[Path]
     results_filename: str = "metrics-all.jsonl"
+
+    cache_subdir: str = "new_ingest"
+    prefix_map: dict[TaskArtifactType, str] = Field(
+        default_factory=lambda: {
+            TaskArtifactType.PREDICTIONS: "prd",
+            TaskArtifactType.RECORDED_INPUTS: "inp",
+            TaskArtifactType.REQUESTS: "req",
+            TaskArtifactType.CONFIG: "cfg",
+            TaskArtifactType.METRICS: "met",
+        }
+    )
+
+    skip_map: dict[TaskArtifactType, set[str]] = Field(
+        default_factory=lambda: {
+            TaskArtifactType.PREDICTIONS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.RECORDED_INPUTS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.REQUESTS: {"file_prefix", "doc_id", "idx"},
+            TaskArtifactType.CONFIG: {"file_prefix", "doc_id"},
+            TaskArtifactType.METRICS: {"file_prefix", "doc_id"},
+        }
+    )
+
+    select_parts: list[str] = Field(
+        default_factory=lambda: [
+            "dk.file_prefix",
+            "dk.doc_id",
+            "dk.idx",
+        ]
+    )
+
     task_file_prefix: str = "task-"
     task_idx_width: int = 3
     stem_separator: str = "-"
